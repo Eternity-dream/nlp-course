@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
-FROM python:3.13-slim-bookworm AS builder
+FROM ${PYTHON_IMAGE} AS builder
 COPY --from=uv /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY backend/src/ backend/src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
-FROM python:3.13-slim-bookworm AS runtime
+FROM ${PYTHON_IMAGE} AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

@@ -1,0 +1,79 @@
+{
+  "started_at": "2026-11-15T01:11:34.125558+00:00",
+  "status": "passed",
+  "health": {
+    "status": "ok",
+    "schema_version": 4
+  },
+  "image_environment": {
+    "uid": 10001,
+    "gid": 10001,
+    "env_file": false,
+    "source_tree": false,
+    "pytest": false,
+    "data_dir": "/data"
+  },
+  "container_replaced_data_preserved": true,
+  "verify": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1
+  },
+  "backup": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "archive": "/backup/snapshot.zip",
+    "archive_sha256": "346f9ba17fdcab129a9e4ed44e25961ad9c940920306d448bd3606e0b377d536"
+  },
+  "restore": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "restored_from_schema": 4
+  },
+  "empty_volume_restore_verified": true,
+  "loopback_port_verified": true,
+  "image": "travel-planner-backend:0.1.0",
+  "checked_at_unix": 1794705118.736587,
+  "elapsed_seconds": 25.504,
+  "finished_at": "2026-11-15T01:11:59.629561+00:00",
+  "build": {
+    "python_image": "public.ecr.aws/docker/library/python:3.13-slim-bookworm",
+    "uv_image": "ghcr.io/astral-sh/uv:0.13.7",
+    "docker": "29.9.3",
+    "compose": "v5.7.1",
+    "platform": "linux/amd64",
+    "image_id": "sha256:0e1f3426310dbc5293f42f66ae4a1c713a57139ca6b631abba9fe8167db9ee08"
+  }
+}

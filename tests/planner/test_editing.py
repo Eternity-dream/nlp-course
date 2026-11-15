@@ -1,4 +1,5 @@
 import copy
+import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,7 +7,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from travel_planner.main import create_app
-from travel_planner.planner.models import ItineraryEdit
+from travel_planner.planner.models import ConstraintReview, ItineraryEdit, PlanDraft
 
 from .conftest import config, submit, wait_job
 
@@ -735,6 +736,55 @@ def test_edited_text_constraints_are_reviewed_again_without_reusing_old_conflict
     review = [item for item in services.contexts if item["operation"] == "review_constraints"][-1]
     assert review["requirements"] == ["不要安排博物馆"]
     assert "personal_material" not in review and "preferences" not in review
+
+
+def test_retained_booking_note_is_visible_to_edit_constraint_review(planned_client, monkeypatch):
+    from .conftest import TRIP
+
+    client = planned_client
+    model = client.app.state.services.model
+    original_generate = model.generate
+    booking_note = "请提前通过官方渠道预约，目前未预约。"
+    reviews = []
+
+    async def generate(messages, schema, **kwargs):
+        output = await original_generate(messages, schema, **kwargs)
+        if schema is PlanDraft:
+            output.assumptions.append(booking_note)
+        elif schema is ConstraintReview:
+            context = json.loads(messages[-1]["content"])
+            reviews.append(context)
+            if booking_note not in context.get("assumptions", []):
+                return ConstraintReview.model_validate(
+                    {
+                        "conflicts": [
+                            {"field": "known_conditions", "index": 0, "reason": "缺少预约提示"}
+                        ]
+                    }
+                )
+        return output
+
+    monkeypatch.setattr(model, "generate", generate)
+    trip = client.post(
+        "/api/trips", json={**TRIP, "known_conditions": ["请在行程说明中保留预约提示"]}
+    ).json()
+    _, job = submit(client, trip)
+    assert wait_job(client, job["id"])["status"] == "succeeded"
+    base = current(client, trip)
+    job = edit(
+        client,
+        trip,
+        base,
+        [{"op": "remove", "activity_id": base["days"][0]["activities"][0]["id"]}],
+    )
+    assert job["status"] == "succeeded", job
+    result = current(client, trip)
+    assert result["validation"]["status"] != "blocked"
+    assert result["constraint_conflicts"] == []
+    assert booking_note in result["assumptions"]
+    assert reviews[-1]["assumptions"] == result["assumptions"]
+    assert reviews[-1]["notices"] == result["notices"]
+    assert_unchanged(base, result, [1, 2])
 
 
 def test_seven_day_other_city_edit_preserves_all_other_dates(planned_client):

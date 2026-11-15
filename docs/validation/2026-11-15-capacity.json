@@ -1,0 +1,102 @@
+{
+  "started_at": "2026-11-15T00:44:34.529397+00:00",
+  "status": "passed",
+  "environment": {
+    "python": "3.13.18",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43"
+  },
+  "sample_kind": "generated_chinese_text_and_pdf",
+  "import_seconds": 20.199,
+  "import": {
+    "text": 50,
+    "pdf": 50,
+    "total_bytes": 28321324,
+    "ready": 100,
+    "file_count_limit": "source_count_limit",
+    "largest_file_bytes": 20971520,
+    "long_text_characters": 1900000,
+    "largest_pdf_pages": 200
+  },
+  "search": {
+    "verified_sources": 100,
+    "chunks": 4140,
+    "query_p50_ms": 5.29,
+    "query_p95_ms": 7.156
+  },
+  "boundaries": {
+    "20_mib_plus_one": "source_too_large",
+    "21_mib_request_plus_one": "request_too_large",
+    "201.pdf": "pdf_page_limit",
+    "over.txt": "extracted_text_limit"
+  },
+  "interruption": {
+    "status": "passed",
+    "processing": "import_interrupted",
+    "pending": "ready",
+    "partial_chunks": 0
+  },
+  "verify": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 0,
+      "request_revisions": 0,
+      "knowledge_sources": 100,
+      "chunks": 4107,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 100
+  },
+  "backup": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 0,
+      "request_revisions": 0,
+      "knowledge_sources": 100,
+      "chunks": 4107,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 100,
+    "archive": "backups/acceptance/capacity-20261115-valid-pdf/backup.zip",
+    "archive_sha256": "8c5444ecdf89af5f54b05a14f58c78adfb23546fc6e297fb1771c84053f9ecf9"
+  },
+  "restore": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 0,
+      "request_revisions": 0,
+      "knowledge_sources": 100,
+      "chunks": 4107,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 100,
+    "restored_from_schema": 4
+  },
+  "restored_search": {
+    "verified_sources": 98,
+    "chunks": 4106,
+    "query_p50_ms": 5.868,
+    "query_p95_ms": 15.428
+  },
+  "restored_http_verified": true,
+  "sampled_peak_resources": {
+    "service_rss_bytes": 324796416,
+    "child_rss_bytes": 240984064,
+    "group_rss_bytes": 481968128,
+    "sample_interval_seconds": 0.05,
+    "method": "Linux /proc RSS; process group sum includes shared pages per process"
+  },
+  "elapsed_seconds": 42.797,
+  "finished_at": "2026-11-15T00:45:17.326689+00:00"
+}

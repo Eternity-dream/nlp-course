@@ -2,7 +2,7 @@
 
 当前已实现 FastAPI 服务、SQLite 迁移、行程要求与版本控制、偏好与资料管理、外部服务适配、后台规划、行程编辑和核验，以及运行状态与离线数据维护。代码位于 `backend/src/travel_planner/`，依赖由根目录 `pyproject.toml` 与 `uv.lock` 管理。
 
-固定响应已验证西安三天、杭州七天的后端完整规划与局部编辑。已交付后端容器配置、停服校验与备份恢复工具，并验证非开发模式安装。容器运行、Windows 安装与真实账号端到端继续按[实施设计](implementation.md#工作包与完成条件)验收，操作命令见[部署说明](deployment.md)。
+固定响应已验证西安三天、杭州七天的后端完整规划与局部编辑。非开发安装、100 份生成中文资料容量、边界与中断恢复、Linux 容器启动／替换／新卷恢复均已通过验收。在线服务与完整规划的执行结果见[验收记录](validation/2026-11-15-backend.md)，Windows 安装按[实施设计](implementation.md#工作包与完成条件)继续验收，操作命令见[部署说明](deployment.md)。
 
 ## 使用 uv 启动
 
@@ -244,6 +244,8 @@ uv 使用 `.python-version` 指定的 Python 3.13。浏览器访问 `http://127.
 
 `providers/amap.py` 地点搜索传入 `region` 与 `city_limit=true`，保留 POI ID、地址、GCJ-02 坐标及城市编码。同名门店按 POI ID 区分；坐标或城市无法确认、路线缺失耗时的结果保留 `unknown`，有耗时的结果标为 `estimated`。营业时间和人均消费保留原始说明文字，交给后续核验处理。
 
+高德 HTTP 429 与短时 QPS 限流采用有限退避，单次调用最多三次尝试；首次限流后，同一服务实例的地点与路线请求共享 1.1 秒最小间隔。尊重重试时间，等待超过 30 秒时返回带 `retry_at` 的可重试错误；分钟级限流保留 60 秒冷却。鉴权、额度与参数错误直接返回。
+
 数据库版本已升至 4；版本 2 新增连通性检查记录，版本 3 新增规划任务、事件及行程版本，版本 4 为任务增加类型、基础草案版本和编辑操作。启动时在事务内迁移，保留原有数据；旧任务默认为规划任务。
 
 ## 本地验证
@@ -254,7 +256,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-2026-11-15 在 Linux、Python 3.13 环境完成 275 项测试，Ruff 代码与格式检查通过，覆盖：
+2026-11-15 在 Linux、Python 3.13 环境完成 291 项测试，Ruff 代码与格式检查通过，覆盖：
 
 - 3／7 天与错误日期、整数金额、待补充字段、条件版本保留及并发写入冲突。
 - 偏好主动更新、清空、本次要求与偏好独立、无 Key 配置读取和密钥脱敏。
@@ -277,16 +279,32 @@ uv run ruff format --check .
 - 离线维护与应用进程互斥、空闲检查、含 WAL 的数据库快照、备份摘要与原资料校验，以及无硬链接文件系统的备份写入。
 - 完整规划／编辑历史、偏好、任务事件、等待补充任务和中文索引恢复后可读，并可继续规划和编辑；旧数据库先迁移再恢复。
 - 备份不覆盖、空目标限制、清单／文件损坏、路径越界、重复项、符号链接和展开大小限制，以及发布失败回滚、恢复中断启动保护。
+- 高德 QPS 错误与 HTTP 429 的有限重试、并发请求共享节流、长冷却返回、分钟级限流，以及鉴权／额度／参数错误不重试。
+- 编辑文字核验同时读取保留的说明与提示，已有预约提醒不会因未出现在活动字段中而被误报缺失；其他日期保持原值。
 
 另通过实际 Uvicorn 进程的 HTTP 请求验证无 Key 启动、保存行程要求、后台导入文本与中文检索，并在终止、重新启动进程后核对行程及索引可读取。
 
-规划与编辑进程测试使用实际 Uvicorn HTTP 服务，外部服务由固定响应提供：提交后断开客户端，重新连接可读完整结果；强制终止有运行中编辑和排队规划任务的进程后重启，确认中断状态、旧结果可读、编辑操作保留及用户重试生成新版本。此测试纳入上述 275 项。
+规划与编辑进程测试使用实际 Uvicorn HTTP 服务，外部服务由固定响应提供：提交后断开客户端，重新连接可读完整结果；强制终止有运行中编辑和排队规划任务的进程后重启，确认中断状态、旧结果可读、编辑操作保留及用户重试生成新版本。此测试纳入上述 291 项。
 
 ## 真实服务验证（2026-11-15）
 
 从当前 Linux 执行环境使用无 Key Exa 官方 MCP 完成初始化、工具发现和“西安 碑林博物馆 官方 开放时间”搜索，返回 3 个有效来源，回退链在 Exa 停止。随后使用实际发现的 `web_fetch_exa` 工具与 `urls` 参数取得 `https://beilin-museum.com/` 正文，保存工具 Schema、调用参数、时间和公开响应为 `tests/fixtures/providers/exa_mcp_live.json`，并以该录制响应回归正文解析。
 
-模型、Exa 带 Key REST、Tavily、AnySearch、高德账号调用，以及真实三家回退仍待使用对应凭据验收；固定响应测试已覆盖其协议与错误分支。100 份真实资料容量样本和 Windows 安装继续按计划执行。对应案例的执行范围见[验收设计](acceptance.md#需求覆盖与执行状态)。
+实际 DeepSeek `deepseek-flash`、高德与 Exa 已完成公开西安三天样例的规划、单日编辑、重启和备份恢复。原草案包含 13 项活动、24 个来源与 10 段估算路线，24 条提取事实均未达到已核实条件；结果为 `needs_review`，营业时间、票价和预算继续核对。编辑核验遗漏已有预约说明造成的误报已修复并通过真实模型复测，具体结果见[验收记录](validation/2026-11-15-backend.md)。Exa 带 Key REST、Tavily、AnySearch 带 Key 和完整三家在线回退仍需相应配置验收。
+
+## 可重复执行的独立验收
+
+```sh
+uv run python scripts/accept_backend_capacity.py --output-dir backups/acceptance/capacity-new
+uv run python scripts/accept_backend_live.py --output-dir backups/acceptance/live-new --start-date 2026-12-01 --direct --provider-timeout 120
+uv run python scripts/accept_backend_container.py --output-dir backups/acceptance/container-new --sudo
+```
+
+每次使用新的输出目录。容量验收关闭外部服务，通过真实 HTTP 接口导入 50 份文本和 50 份中文 PDF，检查 20 MiB、200 页、提取字数和 100 份数量边界，逐份核对检索及原文摘要，再强制终止导入进程、重启并验证备份恢复。100 份生成样本导入 20.199 秒，全部成功，查询 P95 为 7.156 ms；详细资源数据保存在[容量报告](validation/2026-11-15-capacity.json)。真实攻略与复杂排版样本继续单独抽查。
+
+在线脚本读取 `.env`，使用独立数据目录与公开样例，显式检查三个服务，执行规划、补充后继续、单日编辑、重启及备份恢复。`--direct` 仅为验收进程绕过环境代理，保留 TLS 校验；`--provider-timeout` 仅覆盖验收进程的外部调用超时。该脚本会调用实际模型、搜索与地图服务。
+
+容器脚本使用已构建镜像、独立 Compose 项目和专属卷；检查非 root 用户、健康状态、回环端口、容器替换和空卷恢复，结束后清理测试容器及卷。`--sudo` 用于当前 Linux 环境，在有 Docker 访问权限的其他环境中可省略。
 
 ## 数据备份
 
@@ -302,4 +320,4 @@ uv run travel-data --data-dir ./restored-data restore --archive ./backups/snapsh
 
 非 editable 安装后已删除构建源码，实际 Uvicorn HTTP 请求验证行程要求、偏好、后台导入与中文检索；使用安装后的 CLI 备份恢复，再启动服务核对数据成功。`uv build` 成功生成 wheel 与 sdist。Compose 解析验证端口仅绑定回环地址，`.env` 的本地 `DATA_DIR` 不覆盖容器 `/data`，卷名和镜像标签可独立配置。
 
-当前 Docker 守护进程套接字连接被拒绝，镜像构建、容器运行与 Windows 安装尚待执行。完整安装、空卷恢复、升级与回滚命令见[后端部署说明](deployment.md)。
+已通过现有 `sudo` 权限在 Linux 构建并运行容器，验证替换容器和空卷恢复。Docker Hub 鉴权超时后，以 `PYTHON_IMAGE` 参数选择 Python 官方镜像的 Amazon ECR Public 镜像源完成构建。Windows 操作待在目标系统执行。完整安装、空卷恢复、升级与回滚命令见[后端部署说明](deployment.md)。

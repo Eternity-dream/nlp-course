@@ -26,6 +26,12 @@ Invoke-RestMethod http://127.0.0.1:8000/api/health
 
 Linux 使用相同的 Docker 命令，首次复制配置用 `cp .env.example .env`，HTTP 检查可用 `curl http://127.0.0.1:8000/api/health`。
 
+若安装网络无法访问 Docker Hub，可通过 `PYTHON_IMAGE` 构建参数选择 Python 官方镜像的 Amazon ECR Public 镜像源；构建与运行阶段共用同一来源：
+
+```sh
+docker compose build --build-arg PYTHON_IMAGE=public.ecr.aws/docker/library/python:3.13-slim-bookworm app
+```
+
 ## 配置与持久化
 
 | 项目 | 默认值与行为 |
@@ -39,6 +45,8 @@ Linux 使用相同的 Docker 命令，首次复制配置用 `cp .env.example .en
 | 替换容器 | `docker compose up -d --no-build --wait app` 继续使用同一命名卷。 |
 
 修改 `.env` 后执行 `docker compose up -d --no-build --force-recreate --wait app` 重新注入配置。`docker compose restart` 使用原容器配置。
+
+本次 DeepSeek 三天样例的事实提取超过默认 30 秒调用超时，使用 `PROVIDER_TIMEOUT_SECONDS=120` 完成在线验收；同类长上下文规划可按此设置。环境代理曾返回无法验证的证书链，验收脚本通过 `--direct` 为独立进程直连并保留 TLS 校验。普通启动时需使用可用的代理证书配置，或在允许直连的安装网络通过进程环境设置 `NO_PROXY`。
 
 同一数据卷只运行一个应用或维护进程。部署第二个独立实例时，分别设置 `TRAVEL_DATA_VOLUME`、`TRAVEL_PORT` 与 `COMPOSE_PROJECT_NAME`，避免共享个人数据和容器名称。
 
@@ -126,8 +134,8 @@ uv run travel-data --data-dir ./restored-data verify
 
 ## 验证记录（2026-11-15）
 
-Linux、Python 3.13 下，275 项自动测试与 Ruff 检查通过。维护测试覆盖完整规划和编辑历史恢复、等待补充任务保留、恢复后继续规划与编辑、WAL 快照、旧版本迁移、损坏与越界备份拒绝、独占锁、失败回滚和中断启动保护。
+Linux、Python 3.13 下，291 项自动测试与 Ruff 检查通过。维护测试覆盖完整规划和编辑历史恢复、等待补充任务保留、恢复后继续规划与编辑、WAL 快照、旧版本迁移、损坏与越界备份拒绝、独占锁、失败回滚和中断启动保护。
 
 已使用锁定依赖完成非开发、非 editable 安装，删除构建源码后启动实际 Uvicorn 服务，通过 HTTP 保存行程要求和偏好、后台导入及中文检索，并用已安装的 `travel-data` 完成备份恢复，再启动服务核对数据。`uv build` 成功生成 wheel 和 sdist；Compose 配置解析确认回环端口、独立卷与 `/data` 设置。
 
-当前账户连接 `/var/run/docker.sock` 被拒绝，镜像构建、容器运行及 Windows Docker Desktop 操作尚待执行。该记录覆盖本地安装与配置验证。
+2026-11-15 通过现有 `sudo` 权限完成 Linux 容器验收。Docker Hub 鉴权请求超时后，使用上述 Python 官方镜像源完成构建；Compose 健康启动、非 root 用户、回环端口、替换容器后数据保留、停服备份和新卷恢复通过。容量验收完成 100 份生成中文资料、大小／页数边界和强制中断恢复。详细数据见[验收记录](validation/2026-11-15-backend.md)；Windows Docker Desktop 操作待执行。

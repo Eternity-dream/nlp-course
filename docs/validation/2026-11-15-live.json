@@ -1,0 +1,812 @@
+{
+  "started_at": "2026-11-15T00:58:14.163873+00:00",
+  "status": "passed",
+  "network_mode": "direct_tls",
+  "provider_timeout_seconds": 120,
+  "config": {
+    "ready_for_planning": true,
+    "missing": [],
+    "errors": [],
+    "llm": {
+      "configured": true
+    },
+    "amap": {
+      "configured": true
+    },
+    "search": [
+      {
+        "provider": "exa",
+        "auth_mode": "anonymous",
+        "configured": true,
+        "protocol": "mcp"
+      },
+      {
+        "provider": "tavily",
+        "auth_mode": "disabled",
+        "configured": false,
+        "protocol": "rest"
+      },
+      {
+        "provider": "anysearch",
+        "auth_mode": "anonymous",
+        "configured": true,
+        "protocol": "rest"
+      }
+    ],
+    "connectivity_checked": false,
+    "restart_required_for_changes": true
+  },
+  "checks": [
+    {
+      "id": "a6663cc7c19246aaaa37966d0d979670",
+      "service": "llm",
+      "checked_at": "2026-11-15T00:58:15.012046+00:00",
+      "success": true,
+      "details": {}
+    },
+    {
+      "id": "f80d0bf65cf64e808cb69771c6be56f0",
+      "service": "amap",
+      "checked_at": "2026-11-15T00:58:16.202470+00:00",
+      "success": true,
+      "details": {
+        "place_count": 3
+      }
+    },
+    {
+      "id": "a7cc7f2c3c2c419f96e7d52ce3690b58",
+      "service": "search",
+      "checked_at": "2026-11-15T00:58:16.430328+00:00",
+      "success": true,
+      "details": {
+        "source_count": 3,
+        "attempts": [
+          {
+            "provider": "exa",
+            "auth_mode": "anonymous",
+            "outcome": "succeeded",
+            "error": null,
+            "retry_at": null,
+            "cooldown_started_at": null
+          }
+        ]
+      }
+    }
+  ],
+  "clarification_questions": [
+    "陕西历史博物馆等热门场馆通常需要提前预约；如果约不到，是否接受改去西安博物院等同类场馆？",
+    "三天行程中，是否希望留出一晚安排大唐不夜城等夜间活动，还是每天傍晚就返回休息？"
+  ],
+  "plan_seconds": 436.306,
+  "plan": {
+    "activities": 13,
+    "places": 24,
+    "sources": 24,
+    "evidence": {
+      "unknown": 24
+    },
+    "routes": {
+      "estimated": 10
+    },
+    "validation": {
+      "status": "needs_review",
+      "issues": [
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "b7e772e7de444bd8b673ca6a1cf84b85"
+          ],
+          "evidence_ids": [
+            "fcf76a28dcef4488aa822a099b48a771"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "b7e772e7de444bd8b673ca6a1cf84b85"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "a1436ea9e38e4040ae73d8a6c76e63b2"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "a1436ea9e38e4040ae73d8a6c76e63b2"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "90c76a870b28419cb8fd48a946fa7416"
+          ],
+          "evidence_ids": [
+            "e795bcf4d42a4b8a80495cdaa0a949b1"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "90c76a870b28419cb8fd48a946fa7416"
+          ],
+          "evidence_ids": [
+            "03463ccae15f49d9ae4c942765f3844d"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "1c84dded994e4374b500fa3cecc19330"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "1c84dded994e4374b500fa3cecc19330"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "a40620ca118741b3b1ceba2d114d3a0d"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "33ad436f6d8c485d806ff2af28067dea"
+          ],
+          "evidence_ids": [
+            "b86a36856f7a4976b53c17cb91e9db2f"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "33ad436f6d8c485d806ff2af28067dea"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "ff3af3f55aaa46b8a3f8f7c84a32df59"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "ff3af3f55aaa46b8a3f8f7c84a32df59"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "b28439ef60a9401aabf33a65a8037ab5"
+          ],
+          "evidence_ids": [
+            "353b969e9d894b5e914e349fea059b69"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "b28439ef60a9401aabf33a65a8037ab5"
+          ],
+          "evidence_ids": [
+            "6668d1e140544d56b0718790d457a85d"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "c78b71ba54be45ad84588e56599cd639"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "c78b71ba54be45ad84588e56599cd639"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "fc8918fbe82a4b93b5c823e6cef1d313"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "c726e3689d02432fa2ae9e4a7cad4d9d"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "88608ab4da294075a5ffe8e57ccf2f52"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "3c91bf6638224fa697597c93aec14148"
+          ],
+          "evidence_ids": [
+            "d7d291e8d3ba44349979b94d2221ec10"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "3c91bf6638224fa697597c93aec14148"
+          ],
+          "evidence_ids": [
+            "0cf14d8ec0b34f77b8fe93f5088b209d"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "80bbade2d0054f3c85f6ccddddf6713b"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "80bbade2d0054f3c85f6ccddddf6713b"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "5cd4d2ae9c2846bfbe8f7a92566bd2c3"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "5cd4d2ae9c2846bfbe8f7a92566bd2c3"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "0d2eb048204149939629665da7177a7b"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "0d2eb048204149939629665da7177a7b"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "09e314cca7924094ac8f1682075d60b9"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "09e314cca7924094ac8f1682075d60b9"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：三天均在西安市内，住宿已安排，每天可使用完整白天，无已订门票或预约。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：仅安排西安中心城区，不去临潼的兵马俑、华清宫；以室内文化馆为主。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：接受短时户外步行，单次不超过60分钟；愿意提前预约，当前未预约，需保留预约提示。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：没有其他必去地点或特殊要求，普通偏好按上述假设继续。"
+        },
+        {
+          "rule": "budget_incomplete",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "部分费用未知，全程预算尚不能判为满足"
+        }
+      ],
+      "known_cost_cents": 0,
+      "estimated_cost_cents": 21600,
+      "unknown_cost_count": 10
+    },
+    "search_attempts": {
+      "exa:succeeded": 25,
+      "local:succeeded": 35,
+      "local:failed": 5
+    }
+  },
+  "edit_seconds": 75.003,
+  "edit": {
+    "activities": 12,
+    "places": 24,
+    "sources": 28,
+    "evidence": {
+      "unknown": 18
+    },
+    "routes": {
+      "estimated": 9
+    },
+    "validation": {
+      "status": "blocked",
+      "issues": [
+        {
+          "rule": "day_coverage",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "2026-12-01 未覆盖完整早中晚安排"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "a1436ea9e38e4040ae73d8a6c76e63b2"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "a1436ea9e38e4040ae73d8a6c76e63b2"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "90c76a870b28419cb8fd48a946fa7416"
+          ],
+          "evidence_ids": [
+            "f66824c232e0499990132c14f0d55701"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "90c76a870b28419cb8fd48a946fa7416"
+          ],
+          "evidence_ids": [
+            "af77fa6282614899b5faf35cfc77c2e8"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "1c84dded994e4374b500fa3cecc19330"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "1c84dded994e4374b500fa3cecc19330"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "33ad436f6d8c485d806ff2af28067dea"
+          ],
+          "evidence_ids": [
+            "b86a36856f7a4976b53c17cb91e9db2f"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "33ad436f6d8c485d806ff2af28067dea"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "ff3af3f55aaa46b8a3f8f7c84a32df59"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "ff3af3f55aaa46b8a3f8f7c84a32df59"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "b28439ef60a9401aabf33a65a8037ab5"
+          ],
+          "evidence_ids": [
+            "353b969e9d894b5e914e349fea059b69"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "b28439ef60a9401aabf33a65a8037ab5"
+          ],
+          "evidence_ids": [
+            "6668d1e140544d56b0718790d457a85d"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "c78b71ba54be45ad84588e56599cd639"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "c78b71ba54be45ad84588e56599cd639"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "fc8918fbe82a4b93b5c823e6cef1d313"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "c726e3689d02432fa2ae9e4a7cad4d9d"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "transport_cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "88608ab4da294075a5ffe8e57ccf2f52"
+          ],
+          "evidence_ids": [],
+          "message": "当地交通费用为查询时估算"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "3c91bf6638224fa697597c93aec14148"
+          ],
+          "evidence_ids": [
+            "d7d291e8d3ba44349979b94d2221ec10"
+          ],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_estimated",
+          "severity": "unknown",
+          "object_ids": [
+            "3c91bf6638224fa697597c93aec14148"
+          ],
+          "evidence_ids": [
+            "0cf14d8ec0b34f77b8fe93f5088b209d"
+          ],
+          "message": "费用为估算或来源尚待核对"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "80bbade2d0054f3c85f6ccddddf6713b"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "80bbade2d0054f3c85f6ccddddf6713b"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "5cd4d2ae9c2846bfbe8f7a92566bd2c3"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "5cd4d2ae9c2846bfbe8f7a92566bd2c3"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "0d2eb048204149939629665da7177a7b"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "0d2eb048204149939629665da7177a7b"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "opening_hours",
+          "severity": "unknown",
+          "object_ids": [
+            "09e314cca7924094ac8f1682075d60b9"
+          ],
+          "evidence_ids": [],
+          "message": "当日营业安排待核对，未知营业时间未判为通过"
+        },
+        {
+          "rule": "cost_unknown",
+          "severity": "unknown",
+          "object_ids": [
+            "09e314cca7924094ac8f1682075d60b9"
+          ],
+          "evidence_ids": [],
+          "message": "费用未知，保留已知小计"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：三天均在西安市内，住宿已安排，每天可使用完整白天，无已订门票或预约。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：仅安排西安中心城区，不去临潼的兵马俑、华清宫；以室内文化馆为主。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "conflict",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "接受短时户外步行，单次不超过60分钟；愿意提前预约，当前未预约，需保留预约提示。：行程中未包含任何预约提示或提醒，而条件明确要求当前未预约时需保留预约提示。"
+        },
+        {
+          "rule": "explicit_constraint",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "请核对文字条件：没有其他必去地点或特殊要求，普通偏好按上述假设继续。"
+        },
+        {
+          "rule": "budget_incomplete",
+          "severity": "unknown",
+          "object_ids": [],
+          "evidence_ids": [],
+          "message": "部分费用未知，全程预算尚不能判为满足"
+        }
+      ],
+      "known_cost_cents": 0,
+      "estimated_cost_cents": 21200,
+      "unknown_cost_count": 9
+    },
+    "search_attempts": {
+      "exa:succeeded": 2,
+      "local:succeeded": 4
+    }
+  },
+  "restart_verified": true,
+  "verify": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 2,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 2,
+      "itinerary_revisions": 2,
+      "current_itineraries": 1
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1
+  },
+  "backup": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 2,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 2,
+      "itinerary_revisions": 2,
+      "current_itineraries": 1
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "archive": "backups/acceptance/live-xian-20261115-120s/backup.zip",
+    "archive_sha256": "db0fbfd043b8a9755a17a0c9ad694e1763a00b3a167d467c5623d501b285a334"
+  },
+  "restore": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 2,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 2,
+      "itinerary_revisions": 2,
+      "current_itineraries": 1
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "restored_from_schema": 4
+  },
+  "restored_http_verified": true,
+  "sampled_peak_resources": {
+    "service_rss_bytes": 227041280,
+    "child_rss_bytes": 224243712,
+    "group_rss_bytes": 448487424
+  },
+  "elapsed_seconds": 520.709,
+  "finished_at": "2026-11-15T01:06:54.872557+00:00",
+  "model": "deepseek-flash",
+  "verified_behavior": "planning_editing_and_persistence_flow",
+  "acceptance_findings": {
+    "booking_note_false_positive": "resolved; see 2026-11-15-live-edit-fix.json",
+    "factual_coverage": "needs_review; 24 of 24 extracted claims unknown"
+  }
+}

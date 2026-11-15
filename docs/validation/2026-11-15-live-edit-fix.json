@@ -1,0 +1,54 @@
+{
+  "started_at": "2026-11-15T01:10:30.681290+00:00",
+  "scenario": "booking_note_retained_during_real_edit_review",
+  "model": "deepseek-flash",
+  "provider_timeout_seconds": 120,
+  "network_mode": "direct_tls",
+  "before_validation": "blocked",
+  "status": "passed",
+  "revision": 3,
+  "after_validation": "needs_review",
+  "constraint_conflicts": [],
+  "retained_assumptions_verified": true,
+  "other_days_unchanged": true,
+  "evidence": {
+    "unknown": 18
+  },
+  "restart_verified": true,
+  "backup": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 2,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 3,
+      "itinerary_revisions": 3,
+      "current_itineraries": 1
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "archive": "backups/acceptance/live-edit-review-fixed-20261115/backup.zip",
+    "archive_sha256": "9f9fe4ae5c32f10c399d3b3443066a84d1c4a319d0b51b33926cddf9fcd9b297"
+  },
+  "restore": {
+    "schema_version": 4,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 2,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 3,
+      "itinerary_revisions": 3,
+      "current_itineraries": 1
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "restored_from_schema": 4
+  },
+  "restored_http_verified": true,
+  "elapsed_seconds": 54.031,
+  "finished_at": "2026-11-15T01:11:24.712118+00:00"
+}

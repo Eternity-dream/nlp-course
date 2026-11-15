@@ -1,5 +1,7 @@
+import asyncio
 import math
-from datetime import UTC, datetime
+import time
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from travel_planner.providers.errors import ProviderError
@@ -44,12 +46,47 @@ def money_cents(value) -> int | None:
 
 
 class Amap:
-    def __init__(self, key: str, http: ProviderHTTP):
+    def __init__(self, key: str, http: ProviderHTTP, *, clock=time.monotonic, sleep=asyncio.sleep):
         self.key, self.http = key, http
+        self._lock = asyncio.Lock()
+        self._clock, self._sleep = clock, sleep
+        self._interval, self._next_request = 0.0, 0.0
 
     async def _get(self, path: str, params: dict) -> dict:
         if not self.key.strip():
             raise ProviderError("amap", "not_configured")
+        async with self._lock:
+            for attempt in range(3):
+                delay = self._next_request - self._clock()
+                if delay > 30:
+                    raise ProviderError(
+                        "amap",
+                        "rate_limited",
+                        retry_at=datetime.now(UTC) + timedelta(seconds=delay),
+                    )
+                if delay > 0:
+                    await self._sleep(delay)
+                try:
+                    return await self._request(path, params)
+                except ProviderError as exc:
+                    if exc.reason != "rate_limited":
+                        raise
+                    # 首次收到限流后对地点、路线及显式检查共用节流状态。
+                    self._interval = 1.1
+                    delay = max(self._interval, 2**attempt)
+                    if exc.retry_at:
+                        delay = max(delay, (exc.retry_at - datetime.now(UTC)).total_seconds())
+                    self._next_request = self._clock() + delay
+                    if attempt == 2 or delay > 30:
+                        raise ProviderError(
+                            "amap",
+                            "rate_limited",
+                            retry_at=datetime.now(UTC) + timedelta(seconds=delay),
+                        ) from exc
+                finally:
+                    self._next_request = max(self._next_request, self._clock() + self._interval)
+
+    async def _request(self, path: str, params: dict) -> dict:
         result = await self.http.json(
             "amap",
             "GET",
@@ -58,17 +95,34 @@ class Amap:
         )
         if str(result.get("status")) != "1":
             code = str(result.get("infocode"))
-            if code in {"10001", "10005", "10006", "10007", "10009", "10012", "10013"}:
+            if code in {
+                "10001",
+                "10002",
+                "10005",
+                "10006",
+                "10007",
+                "10008",
+                "10009",
+                "10012",
+                "10013",
+                "10026",
+                "10041",
+                "40002",
+            }:
                 reason = "auth_failed"
-            elif code in {"10003", "10044"}:
+            elif code in {"10003", "10044", "10045", "40000", "40003"}:
                 reason = "quota_exhausted"
-            elif code in {"10004", "10020", "10021"}:
+            elif code in {"10004", "10014", "10015", "10019", "10020", "10021", "10029"}:
                 reason = "rate_limited"
             elif code.startswith("200"):
                 reason = "request_invalid"
             else:
                 reason = "unavailable"
-            raise ProviderError("amap", reason)
+            raise ProviderError(
+                "amap",
+                reason,
+                retry_at=datetime.now(UTC) + timedelta(seconds=60) if code == "10004" else None,
+            )
         return result
 
     async def places(self, destination: str, keywords: str, limit: int = 5) -> list[Place]:
