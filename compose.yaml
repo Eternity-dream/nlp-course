@@ -1,0 +1,23 @@
+name: travel-planner
+services:
+  app:
+    image: ${APP_IMAGE:-travel-planner-backend:0.1.0}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 45s
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:${TRAVEL_PORT:-8000}:8000"
+    volumes:
+      - data:/data
+volumes:
+  data:
+    name: ${TRAVEL_DATA_VOLUME:-travel-planner-data}

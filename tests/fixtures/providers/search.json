@@ -1,0 +1,16 @@
+{
+  "exa": {
+    "results": [
+      {"title": "碑林参观指南", "url": "https://example.com/beilin", "text": "开放时间以当日公告为准。", "publishedDate": "2026-11-01T00:00:00Z"},
+      {"title": "缺少地址"},
+      {"title": "错误协议", "url": "file:///etc/passwd"}
+    ]
+  },
+  "tavily": {
+    "results": [{"title": "西湖指南", "url": "https://example.com/xihu", "content": "搜索摘要", "raw_content": "网页正文：西湖步行路线。"}]
+  },
+  "anysearch": {
+    "code": 0,
+    "data": {"results": [{"title": "博物馆公告", "url": "https://example.com/museum", "snippet": "公告摘要", "content": "博物馆公开参观公告。"}]}
+  }
+}

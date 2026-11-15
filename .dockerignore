@@ -1,0 +1,10 @@
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!backend/
+!backend/src/
+!backend/src/**
+**/__pycache__/
+**/*.pyc

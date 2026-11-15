@@ -1,0 +1,9 @@
+{
+  "status": "1",
+  "infocode": "10000",
+  "pois": [
+    {"id": "B001", "name": "同名餐馆", "address": "碑林区一号", "location": "108.950000,34.250000", "cityname": "西安市", "citycode": "029", "adcode": "610103", "business": {"opentime_week": "09:00-17:00", "cost": "50"}},
+    {"id": "B002", "name": "同名餐馆", "address": "雁塔区二号", "location": "108.960000,34.260000", "cityname": "西安市", "citycode": "029", "adcode": "610113", "business": {}},
+    {"id": "B003", "name": "坐标未知", "address": [], "location": "bad", "cityname": "西安市", "citycode": "029", "adcode": "610103"}
+  ]
+}
