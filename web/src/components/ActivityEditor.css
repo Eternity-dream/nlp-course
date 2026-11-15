@@ -1,0 +1,141 @@
+.activity-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  min-width: 0;
+}
+
+.activity-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-12);
+}
+
+.activity-editor-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.activity-editor-error {
+  padding: var(--spacing-12);
+  background: #fee2e2;
+  color: var(--color-danger-text);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.activity-editor-search {
+  display: flex;
+  gap: var(--spacing-12);
+  align-items: flex-start;
+}
+
+.activity-editor-search > .input-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-editor-search > .button {
+  flex-shrink: 0;
+}
+
+.place-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.place-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--spacing-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: white;
+  width: 100%;
+  text-align: left;
+  transition: border-color 150ms ease-out, background 150ms ease-out;
+}
+
+.place-item:hover {
+  border-color: var(--color-corporate-blue);
+  background: var(--color-slate-mist);
+}
+
+.place-item.selected {
+  border-color: var(--color-corporate-blue);
+  background: #eff6ff;
+}
+
+.place-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.place-address {
+  font-size: 13px;
+  color: var(--color-slate);
+  overflow-wrap: anywhere;
+}
+
+.activity-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-16);
+  border-top: 1px solid var(--color-border);
+}
+
+.editor-fields {
+  border: none;
+  padding: 0;
+  min-width: 0;
+}
+
+.editor-fields:disabled {
+  opacity: 0.7;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-12) var(--spacing-16);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-12);
+}
+
+.form-actions > .button,
+.form-grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .activity-editor-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions {
+    justify-content: stretch;
+  }
+
+  .form-actions > .button {
+    flex: 1;
+  }
+}

@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import socket
 import subprocess
 import time
@@ -142,6 +143,19 @@ def scenario(args, report):
                 return response.json()
 
             report["health"] = get("/api/health")
+            homepage = client.get("/")
+            require(
+                homepage.status_code == 200
+                and "text/html" in homepage.headers.get("content-type", "")
+                and 'id="root"' in homepage.text,
+                "容器首页未提供网页",
+            )
+            assets = re.findall(r'(?:src|href)="(/assets/[^" ]+)"', homepage.text)
+            require(bool(assets), "网页缺少构建资源")
+            for asset in assets:
+                response = client.get(asset)
+                require(response.status_code == 200 and response.content, "网页构建资源不可读")
+            report["web_assets_verified"] = len(assets)
             require(not get("/api/config/status")["ready_for_planning"], "缺 Key 状态未保留")
             ports = json.loads(
                 containers.command(

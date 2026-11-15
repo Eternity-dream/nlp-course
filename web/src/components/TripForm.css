@@ -1,0 +1,68 @@
+.trip-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-24);
+  max-width: 640px;
+}
+
+.trip-form-error {
+  padding: var(--spacing-12);
+  background: #fee2e2;
+  color: var(--color-danger-text);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.trip-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-16);
+}
+
+.trip-form-row > *,
+.constraint-row > * {
+  min-width: 0;
+}
+
+.trip-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+  padding-top: var(--spacing-16);
+  border-top: 1px solid var(--color-border);
+}
+
+.trip-form-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-12);
+}
+
+.constraint-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-12);
+  align-items: end;
+  padding: var(--spacing-12);
+  background: var(--color-slate-mist);
+  border-radius: var(--radius-input);
+}
+
+.constraint-row > .button {
+  justify-self: start;
+}
+
+.trip-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-12);
+  padding-top: var(--spacing-12);
+}
+
+@media (max-width: 640px) {
+  .trip-form-row {
+    grid-template-columns: 1fr;
+  }
+}

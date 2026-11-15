@@ -1,0 +1,92 @@
+{
+  "checks": [
+    "偏好保存与清空",
+    "文本导入、后台解析和原文下载",
+    "资料详情、段落定位、原文下载、搜索命中与空结果",
+    "文件导入、详情删除与检索清理",
+    "资料列表加载更多",
+    "活动与日期对应的事实、引用、来源和键盘展开",
+    "新建、金额精度、生成任务、轮询和刷新恢复",
+    "删除活动、局部重排和新版本保存",
+    "地点查询、键盘选择、添加活动和零费用",
+    "活动时间修改、费用依据保留、稳定标识与局部保存",
+    "地点替换与费用更新",
+    "同日排序、指定跨日移动和第三天保持",
+    "历史草案查询、只读和返回最新版",
+    "补充条件保留输入、原任务继续",
+    "显式服务检查",
+    "抵达、离开、跨午夜预约、重开保留、删除和零预算",
+    "390px、320px页面布局和路由直达",
+    "缺配置状态与用户文案",
+    "服务错误提示与重试入口"
+  ],
+  "pageErrors": [],
+  "accessibility": [
+    {
+      "page": "desktop-home",
+      "violations": []
+    },
+    {
+      "page": "desktop-preferences",
+      "violations": []
+    },
+    {
+      "page": "desktop-knowledge",
+      "violations": []
+    },
+    {
+      "page": "desktop-knowledge-detail",
+      "violations": []
+    },
+    {
+      "page": "mobile-320-knowledge-detail",
+      "violations": []
+    },
+    {
+      "page": "desktop-knowledge-search",
+      "violations": []
+    },
+    {
+      "page": "desktop-file-import",
+      "violations": []
+    },
+    {
+      "page": "desktop-trip-form",
+      "violations": []
+    },
+    {
+      "page": "desktop-itinerary",
+      "violations": []
+    },
+    {
+      "page": "desktop-add-activity",
+      "violations": []
+    },
+    {
+      "page": "desktop-history",
+      "violations": []
+    },
+    {
+      "page": "desktop-services",
+      "violations": []
+    },
+    {
+      "page": "desktop-time-constraints",
+      "violations": []
+    },
+    {
+      "page": "mobile-320-time-constraints",
+      "violations": []
+    },
+    {
+      "page": "missing-config",
+      "violations": []
+    }
+  ],
+  "layoutIssues": [],
+  "started_at": "2026-11-15T04:00:51.311Z",
+  "source_id": "eeda2d68125e440c92c7612953da91f5",
+  "trip_id": "542ea8f0f1924971a3328d220719ba99",
+  "status": "passed",
+  "finished_at": "2026-11-15T04:01:13.138Z"
+}

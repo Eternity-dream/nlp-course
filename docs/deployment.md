@@ -1,6 +1,6 @@
-# 后端安装、升级与数据恢复
+# 应用安装、升级与数据恢复
 
-当前镜像提供后端 API 和 `/api/docs` 交互式接口文档，使用 Python 3.13、单个 Uvicorn 进程和一个持久化数据卷。镜像通过 uv 锁定依赖，以 UID／GID `10001:10001` 运行。安装与维护在项目根目录执行。
+镜像提供旅行规划网页、后端 API 和 `/api/docs` 交互式接口文档。Node.js 构建网页，运行阶段由 Python 3.13 的单个 Uvicorn 进程提供静态资源与 API，个人数据保存在持久化卷。依赖分别由 npm 和 uv 锁定，应用以 UID／GID `10001:10001` 运行。安装与维护在项目根目录执行。
 
 ## Windows x64 安装
 
@@ -22,14 +22,14 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8000/api/health
 ```
 
-浏览器打开 `http://127.0.0.1:8000/api/docs`。健康检查成功时返回 `status: ok` 和 `schema_version: 4`。健康检查读取本地数据库，外部模型与地图的连通性由显式检查接口判断。
+浏览器打开 `http://127.0.0.1:8000`。健康检查成功时返回 `status: ok` 和 `schema_version: 4`。健康检查读取本地数据库，外部模型与地图的连通性由页面的显式服务检查判断，接口文档位于 `/api/docs`。
 
 Linux 使用相同的 Docker 命令，首次复制配置用 `cp .env.example .env`，HTTP 检查可用 `curl http://127.0.0.1:8000/api/health`。
 
-若安装网络无法访问 Docker Hub，可通过 `PYTHON_IMAGE` 构建参数选择 Python 官方镜像的 Amazon ECR Public 镜像源；构建与运行阶段共用同一来源：
+若安装网络无法访问 Docker Hub，可通过构建参数选择 Python 和 Node.js 官方镜像的 Amazon ECR Public 镜像源；Python 构建与运行阶段共用同一来源：
 
 ```sh
-docker compose build --build-arg PYTHON_IMAGE=public.ecr.aws/docker/library/python:3.13-slim-bookworm app
+docker compose build --build-arg PYTHON_IMAGE=public.ecr.aws/docker/library/python:3.13-slim-bookworm --build-arg NODE_IMAGE=public.ecr.aws/docker/library/node:24-bookworm-slim app
 ```
 
 ## 配置与持久化
@@ -40,7 +40,7 @@ docker compose build --build-arg PYTHON_IMAGE=public.ecr.aws/docker/library/pyth
 | 访问端口 | 仅发布 `127.0.0.1:8000`。通过 `.env` 的 `TRAVEL_PORT` 修改宿主机端口。 |
 | 数据卷 | 命名卷 `travel-planner-data`，通过 `.env` 的 `TRAVEL_DATA_VOLUME` 修改。 |
 | 容器数据目录 | 固定为 `/data`，覆盖 `.env` 中供本地 uv 使用的 `DATA_DIR`。 |
-| 配置 | `.env` 在启动时注入，构建上下文仅包含 Python 源码、依赖声明和锁定文件。 |
+| 配置 | `.env` 在启动时注入后端，构建上下文包含 Python 与网页源码、依赖声明和锁定文件。凭据不进入网页构建。 |
 | 停止 | `docker compose stop app` 等待进程退出，宽限期为 45 秒。 |
 | 替换容器 | `docker compose up -d --no-build --wait app` 继续使用同一命名卷。 |
 

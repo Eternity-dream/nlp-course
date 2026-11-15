@@ -10,3 +10,8 @@ data/
 dist/
 backups/
 *.egg-info/
+node_modules/
+*.tsbuildinfo
+playwright-report/
+test-results/
+*:Zone.Identifier

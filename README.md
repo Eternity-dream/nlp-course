@@ -10,14 +10,20 @@
 
 基础技术栈为 React + TypeScript + Vite、FastAPI、Python 显式工作流、SQLite 与本地文件存储。知识库使用本地中文关键词检索，资料做基础文字提取，按说明手动备份数据卷。
 
-## 启动后端
+网页提供行程要求与时间安排、后台生成、按天查看与编辑、历史版本、事实依据、资料导入与检索、偏好和服务状态。视觉依据 [design.md](design.md)，运行与浏览器验收见[网页开发与验收](docs/frontend.md)。
+
+## 本机启动
 
 ```sh
 uv sync --locked
+npm --prefix web ci
+npm --prefix web run build
 uv run uvicorn travel_planner.main:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-访问 `http://127.0.0.1:8000/api/docs` 操作接口。默认数据保存在 `./data`，可从 `.env.example` 创建配置；无外部 Key 时可使用资料管理、偏好与行程要求接口。运行 `uv run pytest -q` 执行测试。接口示例、导入限制和备份方式见[后端开发与验证](docs/backend.md)。
+构建网页推荐 Node.js 24 LTS 和 npm。访问 `http://127.0.0.1:8000` 使用应用，接口文档位于 `/api/docs`。默认数据保存在 `./data`，可从 `.env.example` 创建配置；无外部 Key 时可使用资料管理、偏好与行程要求。运行 `uv run pytest -q` 执行后端测试，`npm --prefix web run typecheck` 检查前端类型。接口示例、导入限制和备份方式见[后端开发与验证](docs/backend.md)。
+
+开发时保持后端运行，在另一个终端执行 `npm --prefix web run dev -- --host 127.0.0.1`，通过 Vite 输出的本机地址访问网页；`/api` 请求代理到 `127.0.0.1:8000`。
 
 使用容器时执行 `docker compose build app` 与 `docker compose up -d --no-build --wait app`。停服维护可执行 `uv run travel-data --data-dir ./data verify`，支持 `backup` 与空目录 `restore`；Windows 安装、升级和空卷恢复命令见[后端部署说明](docs/deployment.md)。
 
@@ -29,6 +35,7 @@ uv run uvicorn travel_planner.main:app --host 127.0.0.1 --port 8000 --no-access-
 | [推进计划](docs/plan.md) | 阶段交付物、数据契约概览与实际进度。 |
 | [首版实施设计](docs/implementation.md) | 模块、接口、任务状态、数据格式及 W1–W6 工作包。 |
 | [后端开发与验证](docs/backend.md) | uv 启动、已实现接口、资料导入、测试和数据备份。 |
+| [网页开发与验收](docs/frontend.md) | 前端启动、固定响应浏览器验收、构建发布与界面文案。 |
 | [后端部署说明](docs/deployment.md) | Docker／Compose、本机安装、停服校验、备份恢复与升级回滚。 |
 | [后端验收记录](docs/validation/2026-11-15-backend.md) | 100 份中文资料容量、边界、中断恢复、在线服务与 Linux 容器验证结果。 |
 | [规划检查记录](docs/planning-review.md) | 完整性结论、需求与验收映射、实际验证缺口。 |

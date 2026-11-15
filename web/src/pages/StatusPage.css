@@ -1,0 +1,142 @@
+.status-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-24);
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-title {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.status-error {
+  padding: var(--spacing-12);
+  background: #fee2e2;
+  color: var(--color-danger-text);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.status-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-8) 0;
+}
+
+.status-item-label {
+  font-size: 14px;
+  color: var(--color-slate);
+}
+
+.status-missing {
+  padding: var(--spacing-12);
+  background: #fef3c7;
+  border-radius: var(--radius-input);
+}
+
+.status-missing-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: var(--spacing-8);
+}
+
+.status-missing-item {
+  font-size: 13px;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.status-errors {
+  padding: var(--spacing-12);
+  background: #fee2e2;
+  border-radius: var(--radius-input);
+}
+
+.status-errors-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: var(--spacing-8);
+}
+
+.status-errors-item {
+  font-size: 13px;
+  color: #991b1b;
+  margin-bottom: 4px;
+}
+
+.status-provider {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-8);
+  background: var(--color-slate-mist);
+  border-radius: var(--radius-input);
+}
+
+.status-provider-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.status-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.status-check {
+  padding: var(--spacing-12);
+  background: var(--color-slate-mist);
+  border-radius: var(--radius-input);
+}
+
+.status-check-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-8);
+}
+
+.status-check-service {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.status-check-time {
+  font-size: 13px;
+  color: var(--color-slate);
+  margin-bottom: var(--spacing-8);
+}
+
+.status-check-error {
+  font-size: 13px;
+  color: var(--color-danger-text);
+  margin-top: var(--spacing-8);
+  padding: var(--spacing-8);
+  background: #fee2e2;
+  border-radius: 4px;
+}
