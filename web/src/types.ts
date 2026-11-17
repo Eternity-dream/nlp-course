@@ -10,6 +10,7 @@ export interface TimeConstraint {
 
 export interface TripFields {
   destination: string;
+  reference_ids?: string[];
   start_date?: string | null;
   end_date?: string | null;
   travelers?: number | null;
@@ -19,6 +20,12 @@ export interface TripFields {
   known_conditions?: string[];
   assumptions?: string[];
   time_constraints?: TimeConstraint[];
+  clarifications?: {
+    job_id: string;
+    request_revision: number;
+    questions: string[];
+    answer: string;
+  }[];
 }
 
 export interface Trip extends TripFields {
@@ -52,6 +59,7 @@ export interface PlanJob {
   created_at: string;
   updated_at: string;
   events: JobEvent[];
+  progress_estimate?: number;
 }
 
 export interface ActivityCost {
@@ -70,6 +78,8 @@ export interface Activity {
   end_minute: number;
   transport_mode: 'walking' | 'transit' | 'driving';
   costs: ActivityCost[];
+  description?: string;
+  flexible_meal?: boolean;
 }
 
 export interface DayPlan {
@@ -109,7 +119,7 @@ export interface FactEvidence {
   id: string;
   place_id: string;
   on_date: string;
-  kind: 'opening_hours' | 'ticket_price' | 'meal_price';
+  kind: 'opening_hours' | 'ticket_price' | 'meal_price' | 'reservation';
   source_id: string;
   source_url: string;
   quote: string;
@@ -122,6 +132,9 @@ export interface FactEvidence {
   fetched_at?: string | null;
   status: 'supported' | 'estimated' | 'conflict' | 'unknown';
   reason: string;
+  identity_quote?: string;
+  applicability?: { quote: string } | null;
+  reservation_note?: string;
 }
 
 export interface ValidationIssue {
@@ -189,6 +202,7 @@ export interface Itinerary {
 export interface PreferenceProfile {
   revision: number;
   preferences: Record<string, string>;
+  notes: string;
   updated_at: string;
 }
 

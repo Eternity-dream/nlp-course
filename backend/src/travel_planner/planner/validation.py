@@ -29,7 +29,25 @@ def validate_plan(
 
     for day in draft.days:
         activities = day.activities
-        if {activity.period for activity in activities} != {"morning", "noon", "evening"}:
+        available_start, available_end = 0, 1440
+        for constraint in request["time_constraints"]:
+            relative = (
+                date.fromisoformat(constraint["on_date"]) - day.on_date
+            ).days * 1440 + constraint["minute"]
+            if constraint["kind"] == "arrival":
+                available_start = max(available_start, relative)
+            elif constraint["kind"] == "departure":
+                available_end = min(available_end, relative)
+        expected_periods = {
+            period
+            for period, start, end in (
+                ("morning", 480, 720),
+                ("noon", 720, 1020),
+                ("evening", 1020, 1320),
+            )
+            if min(end, available_end) - max(start, available_start) >= 60
+        }
+        if not expected_periods <= {activity.period for activity in activities}:
             issue("day_coverage", "unknown", f"{day.on_date} 未覆盖完整早中晚安排")
         if not any(activity.kind == "meal" for activity in activities):
             issue("meal_coverage", "unknown", f"{day.on_date} 缺少餐饮安排")
@@ -58,6 +76,8 @@ def validate_plan(
                 and fact.on_date == day.on_date
                 and fact.kind == "opening_hours"
             ]
+            if activity.kind == "meal" and activity.flexible_meal:
+                hours = []
             supported = [fact for fact in hours if fact.status == "supported"]
             conflicts = [fact for fact in hours if fact.status == "conflict"]
             if conflicts:
@@ -94,7 +114,7 @@ def validate_plan(
                         [activity.id],
                         [fact.id],
                     )
-            else:
+            elif not (activity.kind == "meal" and activity.flexible_meal):
                 issue(
                     "opening_hours",
                     "unknown",
@@ -102,6 +122,30 @@ def validate_plan(
                     [activity.id],
                     [fact.id for fact in hours],
                 )
+            reservations = [
+                fact
+                for fact in facts
+                if fact.place_id == place.id
+                and fact.on_date == day.on_date
+                and fact.kind == "reservation"
+                and fact.reservation_required
+                and fact.status in {"supported", "estimated"}
+            ]
+            if reservations and not (activity.kind == "meal" and activity.flexible_meal):
+                confirmed = any(
+                    item["kind"] == "reservation"
+                    and item["on_date"] == day.on_date.isoformat()
+                    and item.get("place_name") == place.name
+                    for item in request["time_constraints"]
+                )
+                if not confirmed:
+                    issue(
+                        "reservation_required",
+                        "unknown",
+                        "需提前预约",
+                        [activity.id],
+                        [fact.id for fact in reservations],
+                    )
             needed = "meal" if activity.kind == "meal" else "ticket"
             if not any(cost.category == needed for cost in activity.costs):
                 unknown += 1

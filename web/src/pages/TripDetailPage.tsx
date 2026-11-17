@@ -11,7 +11,11 @@ import { navigate } from '../utils/router';
 import { formatDate, formatMinute, formatCurrencyWhole, generateIdempotencyKey, JOB_STATUS_LABELS } from '../utils';
 import { CONSTRAINT_KIND_LABELS } from '../utils/trip';
 import { ItineraryView } from '../components/ItineraryView';
+import { ReferenceList } from '../components/ReferencePicker';
 import { TripForm } from '../components/TripForm';
+import { ClarificationDialog } from '../components/ClarificationDialog';
+import { tripNotes } from '../utils/notes';
+import { progressEstimate } from '../utils/progress';
 import './TripDetailPage.css';
 
 const STAGE_LABELS: Record<string, string> = {
@@ -27,6 +31,9 @@ const STAGE_LABELS: Record<string, string> = {
   editing: '编辑中',
   reschedule: '重排活动',
   constraints: '检查条件',
+  planning: '规划安排',
+  review: '审核行程',
+  introduction: '整理介绍',
 };
 
 const MISSING_FIELD_LABELS: Record<string, string> = {
@@ -48,6 +55,8 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showClarification, setShowClarification] = useState(false);
+  const seenClarification = useRef('');
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState('');
   const [selectedRevision, setSelectedRevision] = useState<number | null>(null);
@@ -58,6 +67,19 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
   const requestSeq = useRef(0);
   const selectionRef = useRef<number | null>(null);
   const hasActiveJobRef = useRef(false);
+  const awaitingJob = jobs.find((job) => job.status === 'awaiting_input');
+  const clarificationKey = awaitingJob
+    ? `${awaitingJob.id}:${awaitingJob.request_revision}:${JSON.stringify(awaitingJob.questions)}`
+    : '';
+
+  useEffect(() => {
+    if (clarificationKey && clarificationKey !== seenClarification.current) {
+      seenClarification.current = clarificationKey;
+      setShowClarification(true);
+      setEditing(false);
+    }
+    if (!clarificationKey) setShowClarification(false);
+  }, [clarificationKey]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -161,16 +183,6 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
     }
   }
 
-  async function handleResumeJob(job: PlanJob, revision: number) {
-    setError('');
-    try {
-      await api.resumeJob(job.id, revision);
-      await loadTrip(true);
-    } catch (err) {
-      setError(formatApiError(err));
-    }
-  }
-
   async function handleChangeRevision(rev: number) {
     const target = rev === latestRevision ? null : rev;
     const previous = selectionRef.current;
@@ -214,7 +226,6 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
   }
 
   if (editing) {
-    const awaitingJob = jobs.find((job) => job.status === 'awaiting_input');
     return (
       <div className="trip-detail-page">
         <div className="trip-detail-header">
@@ -222,18 +233,14 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
             <ArrowLeft size={16} />
             返回
           </Button>
-          <h1 className="trip-detail-title">{awaitingJob ? '补充要求' : '编辑行程要求'}</h1>
+          <h1 className="trip-detail-title">编辑行程</h1>
         </div>
         <TripForm
           trip={trip}
           onSuccess={async (updated) => {
             setTrip(updated);
             setEditing(false);
-            if (awaitingJob) {
-              await handleResumeJob(awaitingJob, updated.revision);
-            } else {
-              await loadTrip(true);
-            }
+            await loadTrip(true);
           }}
           onCancel={() => setEditing(false)}
         />
@@ -258,7 +265,7 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
     !isHistoricalVersion &&
     !activeJob &&
     !requestMismatch;
-  // 补充要求需要编辑表单，仅生成或编辑任务执行中禁止改动。
+  // 等待补充时使用弹窗，生成或编辑任务执行中禁止改动要求。
   const canEditTrip = !isRunning && !loadingRevision;
   const canSubmit = trip.missing_fields.length === 0 && !activeJob && !submitting;
   const missingFields = trip.missing_fields
@@ -269,9 +276,7 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
     (job) => job.status === 'succeeded' && job.result_revision != null
   );
 
-  const requirements = trip.requirements ?? [];
-  const priorities = trip.priorities ?? [];
-  const knownConditions = trip.known_conditions ?? [];
+  const notes = tripNotes(trip);
   const timeConstraints = trip.time_constraints ?? [];
 
   return (
@@ -290,6 +295,8 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
         </div>
       )}
 
+      <details open={!itinerary} className="trip-request-details">
+        <summary>行程信息</summary>
       <Card>
         <div className="trip-info">
           {trip.start_date && trip.end_date && (
@@ -312,22 +319,10 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
               <span className="trip-info-value">{formatCurrencyWhole(trip.budget_cents)}</span>
             </div>
           )}
-          {requirements.length > 0 && (
+          {notes.length > 0 && (
             <div className="trip-info-row">
-              <span className="trip-info-label">要求</span>
-              <span className="trip-info-value">{requirements.join('、')}</span>
-            </div>
-          )}
-          {priorities.length > 0 && (
-            <div className="trip-info-row">
-              <span className="trip-info-label">重点</span>
-              <span className="trip-info-value">{priorities.join('、')}</span>
-            </div>
-          )}
-          {knownConditions.length > 0 && (
-            <div className="trip-info-row">
-              <span className="trip-info-label">已知条件</span>
-              <span className="trip-info-value">{knownConditions.join('、')}</span>
+              <span className="trip-info-label">补充说明</span>
+              <span className="trip-info-value" style={{ whiteSpace: 'pre-line' }}>{notes.join('\n')}</span>
             </div>
           )}
           {timeConstraints.length > 0 && (
@@ -346,6 +341,7 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
               </span>
             </div>
           )}
+          {!!trip.reference_ids?.length && <ReferenceList ids={trip.reference_ids} />}
           {missingFields.length > 0 && (
             <div className="trip-info-row">
               <span className="trip-info-label">待补充</span>
@@ -354,9 +350,11 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
           )}
         </div>
         <div className="trip-info-actions">
-          <Button variant="secondary" onClick={() => setEditing(true)} disabled={!canEditTrip}>
-            {isAwaitingInput ? '补充要求' : '编辑要求'}
-          </Button>
+          {!isAwaitingInput && (
+            <Button variant="secondary" onClick={() => setEditing(true)} disabled={!canEditTrip}>
+              编辑要求
+            </Button>
+          )}
           {!isAwaitingInput && (
             <Button onClick={handleSubmitJob} loading={submitting} disabled={!canSubmit}>
               <Play size={16} />
@@ -365,6 +363,7 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
           )}
         </div>
       </Card>
+      </details>
 
       {activeJob && (
         <Card>
@@ -378,6 +377,10 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
             {isRunning && activeJob.stage && (
               <div className="job-status-stage">
                 {STAGE_LABELS[activeJob.stage] || '处理中'}
+                <div className="job-progress">
+                  <progress max={100} value={progressEstimate(activeJob)} aria-label="预计进度" />
+                  <span>预计 {progressEstimate(activeJob)}%</span>
+                </div>
               </div>
             )}
             {isAwaitingInput && activeJob.questions.length > 0 && (
@@ -388,6 +391,9 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
                   </div>
                 ))}
               </div>
+            )}
+            {isAwaitingInput && (
+              <div><Button onClick={() => setShowClarification(true)}>补充说明</Button></div>
             )}
           </div>
         </Card>
@@ -442,7 +448,7 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
 
       {itinerary && <ItineraryView itinerary={itinerary} trip={trip} onUpdate={() => loadTrip(true)} canEdit={canEditItinerary} />}
 
-      {jobs.length > 0 && (
+      {jobs.length > 0 && !itinerary && (
         <Card>
           <button
             type="button"
@@ -471,6 +477,20 @@ export function TripDetailPage({ tripId }: TripDetailPageProps) {
             </ul>
           )}
         </Card>
+      )}
+
+      {awaitingJob && (
+        <ClarificationDialog
+          key={clarificationKey}
+          trip={trip}
+          job={awaitingJob}
+          open={showClarification}
+          onClose={() => setShowClarification(false)}
+          onComplete={async () => {
+            setShowClarification(false);
+            await loadTrip(true);
+          }}
+        />
       )}
     </div>
   );

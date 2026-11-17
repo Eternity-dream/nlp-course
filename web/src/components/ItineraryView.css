@@ -346,3 +346,21 @@
     flex-wrap: wrap;
   }
 }
+.itinerary-details summary {
+  cursor: pointer;
+  color: var(--color-slate);
+  margin: 8px 0;
+}
+
+.activity-warning {
+  color: #92400e;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.activity-description {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--color-text);
+}

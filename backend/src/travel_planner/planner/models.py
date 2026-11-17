@@ -40,19 +40,7 @@ class PlanJob(Model):
     created_at: datetime
     updated_at: datetime
     events: list[JobEvent]
-
-
-class CandidatePlan(Model):
-    place_keywords: Annotated[
-        list[Annotated[str, Field(min_length=1, max_length=80)]], Field(max_length=12)
-    ]
-    questions: TextList = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def usable(self):
-        if not self.questions and not self.place_keywords:
-            raise ValueError("请提供候选地点或关键补充问题")
-        return self
+    progress_estimate: int = 0
 
 
 class OpeningWindow(Model):
@@ -69,7 +57,7 @@ class OpeningWindow(Model):
 class FactClaim(Model):
     place_id: ShortText
     on_date: date
-    kind: Literal["opening_hours", "ticket_price", "meal_price"]
+    kind: Literal["opening_hours", "ticket_price", "meal_price", "reservation"]
     source_id: ShortText
     quote: Annotated[str, Field(min_length=1, max_length=2000)]
     windows: list[OpeningWindow] = Field(default_factory=list, max_length=8)
@@ -77,6 +65,46 @@ class FactClaim(Model):
     last_entry_minute: Minute | None = None
     amount_cents: Cents | None = None
     basis: Literal["per_person", "per_group", "fixed"] = "per_person"
+    identity_quote: str = Field(default="", max_length=2000)
+    applicability: "FactApplicability | None" = None
+    price_scope: str = Field(default="", max_length=300)
+    reservation_required: bool | None = None
+    reservation_note: str = Field(default="", max_length=500)
+
+
+class FactApplicability(Model):
+    quote: Annotated[str, Field(min_length=1, max_length=2000)]
+    mode: Literal["exact", "range", "recurring", "unspecified"]
+    start_date: date | None = None
+    end_date: date | None = None
+    # 月日用于年度季节规则，支持跨年；星期采用 ISO 1（周一）至 7（周日）。
+    start_month_day: Annotated[str, Field(pattern=r"^\d{2}-\d{2}$")] | None = None
+    end_month_day: Annotated[str, Field(pattern=r"^\d{2}-\d{2}$")] | None = None
+    weekdays: list[Annotated[int, Field(ge=1, le=7)]] = Field(default_factory=list, max_length=7)
+    excluded_dates: list[date] = Field(default_factory=list, max_length=30)
+    has_exceptions: bool = False
+
+
+class FactCheck(Model):
+    claim_index: Annotated[int, Field(ge=0)]
+    identity: Literal["matched", "mismatch", "uncertain"]
+    interpretation: Literal["supported", "unsupported", "uncertain"]
+    authority: Literal["official", "secondary", "uncertain"]
+    reason: ShortText
+
+
+class FactChecks(Model):
+    checks: list[FactCheck] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def indices(self, info: ValidationInfo):
+        count = (info.context or {}).get("claim_count")
+        indices = [check.claim_index for check in self.checks]
+        if len(indices) != len(set(indices)) or (
+            count is not None and set(indices) != set(range(count))
+        ):
+            raise ValueError("每条提取事实需要独立审核且索引不能重复")
+        return self
 
 
 class ExtractedFacts(Model):
@@ -104,6 +132,7 @@ class FactEvidence(FactClaim):
     fetched_at: datetime | None
     status: Literal["supported", "estimated", "conflict", "unknown"]
     reason: str
+    verification: dict = Field(default_factory=dict)
 
 
 class ActivityCost(Model):
@@ -121,11 +150,17 @@ class ActivityInput(Model):
     end_minute: Minute
     transport_mode: Literal["walking", "transit", "driving"] = "walking"
     costs: list[ActivityCost] = Field(default_factory=list, max_length=6)
+    description: Annotated[str, Field(max_length=200)] = ""
+    flexible_meal: bool = False
 
     @model_validator(mode="after")
     def duration(self):
         if self.end_minute <= self.start_minute:
             raise ValueError("活动结束需要晚于开始")
+        if self.flexible_meal and self.kind != "meal":
+            raise ValueError("自由用餐标记仅用于餐饮活动")
+        if self.flexible_meal and any(cost.category != "meal" for cost in self.costs):
+            raise ValueError("自由用餐不计入景点门票")
         return self
 
 
@@ -289,6 +324,7 @@ class Itinerary(Model):
     search_attempts: list[dict]
     constraint_conflicts: list[ConstraintConflict] = Field(default_factory=list)
     created_at: datetime
+    planning_context: dict = Field(default_factory=dict)
 
 
 def trip_dates(request: dict) -> list[date]:

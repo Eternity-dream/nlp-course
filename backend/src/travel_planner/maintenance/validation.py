@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from travel_planner.domain.models import PreferencePut, TripFields
 from travel_planner.maintenance.errors import DataError
+from travel_planner.planner.agent_models import AgentState
 from travel_planner.planner.models import Itinerary, ItineraryEdit, PlanDraft, trip_dates
 from travel_planner.storage.database import SCHEMA_VERSION
 
@@ -113,7 +114,9 @@ def validate_database(connection: sqlite3.Connection) -> dict:
     if preference is None:
         raise DataError("preferences_missing", "偏好档案记录缺失")
     PreferencePut(
-        expected_revision=preference["revision"], preferences=json.loads(preference["payload"])
+        expected_revision=preference["revision"],
+        preferences=json.loads(preference["payload"]),
+        notes=preference["notes"] if version >= 6 else None,
     )
     counts = {
         "trips": connection.execute("SELECT count(*) FROM trips").fetchone()[0],
@@ -126,6 +129,9 @@ def validate_database(connection: sqlite3.Connection) -> dict:
         "itinerary_revisions": 0,
         "current_itineraries": 0,
     }
+    if version >= 5:
+        for row in connection.execute("SELECT payload FROM planning_checkpoints"):
+            AgentState.model_validate_json(row[0])
     busy = connection.execute(
         "SELECT count(*) FROM knowledge_sources WHERE status IN ('pending','processing')"
     ).fetchone()[0]

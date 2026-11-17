@@ -179,3 +179,22 @@ async def test_route_fare_preserves_group_and_person_basis(samples, mode, fare, 
         route = await amap.route(places[0], places[1], mode)
         assert route.fare_cents == fare
         assert route.fare_basis == basis
+
+
+async def test_same_area_meal_anchor_does_not_query_a_detour(samples):
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(200, json=samples["amap"])
+
+    client, http = make_http(handle)
+    async with client:
+        amap = Amap("map-secret", http)
+        places = await amap.places("北京", "区域")
+        route = await amap.route(places[0], places[0], "transit")
+    assert len(calls) == 1
+    assert route.duration_seconds == 0
+    assert route.distance_meters == 0
+    assert route.fare_cents == 0
+    assert route.mode == "walking"

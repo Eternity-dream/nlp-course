@@ -119,7 +119,7 @@ def test_single_executor_queue_and_idempotency(planned_client, services):
                 ).fetchone()[0]
                 == 1
             )
-        assert services.operations == ["candidates"]
+        assert services.operations == ["plan_action"]
     finally:
         services.block.set()
     assert wait_job(client, first["id"])["status"] == "succeeded"
@@ -229,7 +229,8 @@ def test_personal_data_only_in_model_context_and_rechecked_before_each_call(
     ).json()
     assert wait_source(client, response["id"])["status"] == "ready"
     services.block, services.entered = threading.Event(), threading.Event()
-    trip, job = submit(client)
+    trip = client.post("/api/trips", json={**TRIP, "reference_ids": [response["id"]]}).json()
+    trip, job = submit(client, trip)
     assert services.entered.wait(3)
     try:
         assert client.delete(f"/api/knowledge/{response['id']}").status_code == 204
@@ -264,6 +265,7 @@ def test_other_city_material_filtered_and_general_preferences_remain_retrievable
     planned_client, services
 ):
     client = planned_client
+    reference_ids = []
     for title, text in [
         ("本城", "西安博物馆笔记：私人本城资料。"),
         ("他城", "杭州博物馆笔记：私人杭州资料。"),
@@ -271,7 +273,10 @@ def test_other_city_material_filtered_and_general_preferences_remain_retrievable
     ]:
         response = client.post("/api/knowledge", json={"title": title, "text": text}).json()
         assert wait_source(client, response["id"])["status"] == "ready"
-    trip = client.post("/api/trips", json={**TRIP, "priorities": ["博物馆"]}).json()
+        reference_ids.append(response["id"])
+    trip = client.post(
+        "/api/trips", json={**TRIP, "priorities": ["博物馆"], "reference_ids": reference_ids}
+    ).json()
     _, job = submit(client, trip)
     assert wait_job(client, job["id"])["status"] == "succeeded"
     content = str(services.contexts[0]["personal_material"])
@@ -302,8 +307,9 @@ def test_material_deleted_between_format_repair_calls_is_not_resent(
         return result
 
     monkeypatch.setattr(model, "_request", invalidate_first)
-    trip, job = submit(client)
+    trip = client.post("/api/trips", json={**TRIP, "reference_ids": [source["id"]]}).json()
+    trip, job = submit(client, trip)
     assert wait_job(client, job["id"])["status"] == "succeeded"
-    contexts = [item for item in services.contexts if item["operation"] == "candidates"]
+    contexts = [item for item in services.contexts if item["operation"] == "plan_action"]
     assert "PRIVATE_MARKER" in str(contexts[0]["personal_material"])
     assert contexts[1]["personal_material"] == []

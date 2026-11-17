@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SettingsPage } from './pages/SettingsPage';
 import { Layout } from './components/Layout';
 import { TripsPage } from './pages/TripsPage';
 import { TripDetailPage } from './pages/TripDetailPage';
@@ -7,6 +8,7 @@ import { PreferencesPage } from './pages/PreferencesPage';
 import { StatusPage } from './pages/StatusPage';
 
 type Route =
+  | { page: 'settings' }
   | { page: 'trips' }
   | { page: 'trip-detail'; tripId: string }
   | { page: 'knowledge' }
@@ -17,6 +19,7 @@ function parseRoute(): Route {
   const path = window.location.pathname;
   if (path === '/' || path === '/trips') return { page: 'trips' };
   if (path.startsWith('/trips/')) return { page: 'trip-detail', tripId: path.split('/')[2] };
+  if (path === '/settings') return { page: 'settings' };
   if (path === '/knowledge') return { page: 'knowledge' };
   if (path === '/preferences') return { page: 'preferences' };
   if (path === '/status') return { page: 'status' };
@@ -36,6 +39,9 @@ export function App() {
 
   let content: React.ReactNode;
   switch (route.page) {
+    case 'settings':
+      content = <SettingsPage />;
+      break;
     case 'trips':
       content = <TripsPage />;
       break;

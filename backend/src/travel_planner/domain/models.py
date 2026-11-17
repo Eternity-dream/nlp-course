@@ -60,6 +60,13 @@ class TimeConstraint(Model):
         return self
 
 
+class Clarification(Model):
+    job_id: ShortText
+    request_revision: PositiveInt
+    questions: TextList
+    answer: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
 class TripFields(Model):
     destination: ShortText
     start_date: TripDate = None
@@ -71,6 +78,8 @@ class TripFields(Model):
     known_conditions: TextList = Field(default_factory=list)
     assumptions: TextList = Field(default_factory=list)
     time_constraints: list[TimeConstraint] = Field(default_factory=list, max_length=30)
+    reference_ids: TextList = Field(default_factory=list)
+    clarifications: list[Clarification] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
     def check_dates(self):
@@ -98,6 +107,8 @@ class TripPatch(Model):
     known_conditions: TextList | None = None
     assumptions: TextList | None = None
     time_constraints: list[TimeConstraint] | None = Field(default=None, max_length=30)
+    reference_ids: TextList | None = None
+    clarifications: list[Clarification] | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def check_nulls(self):
@@ -108,6 +119,8 @@ class TripPatch(Model):
             "known_conditions",
             "assumptions",
             "time_constraints",
+            "clarifications",
+            "reference_ids",
         }:
             if key in self.model_fields_set and getattr(self, key) is None:
                 raise ValueError(f"{key} 不能为 null")
@@ -126,12 +139,14 @@ class Trip(TripFields):
 
 class PreferencePut(Model):
     expected_revision: PositiveInt
-    preferences: dict[ShortText, ShortText] = Field(max_length=100)
+    preferences: dict[ShortText, ShortText] = Field(default_factory=dict, max_length=100)
+    notes: Annotated[str, StringConstraints(strip_whitespace=True, max_length=10000)] | None = None
 
 
 class PreferenceProfile(Model):
     revision: int
     preferences: dict[str, str]
+    notes: str
     updated_at: datetime
 
 

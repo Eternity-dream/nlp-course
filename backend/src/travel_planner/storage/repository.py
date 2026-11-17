@@ -29,11 +29,16 @@ class Repository:
 
     def initialize(self):
         with self.db.connect(write=True) as connection:
-            connection.execute("INSERT OR IGNORE INTO preferences VALUES (1, 1, '{}', ?)", (now(),))
+            connection.execute(
+                "INSERT OR IGNORE INTO preferences (id,revision,payload,updated_at) "
+                "VALUES (1, 1, '{}', ?)",
+                (now(),),
+            )
 
     def create_trip(self, request: TripFields) -> dict:
         trip_id, timestamp = new_id(), now()
         with self.db.connect(write=True) as connection:
+            self._validate_references(connection, request.reference_ids)
             connection.execute(
                 "INSERT INTO trips VALUES (?, 1, ?, ?)", (trip_id, timestamp, timestamp)
             )
@@ -98,6 +103,7 @@ class Repository:
                     422,
                     object_id=trip_id,
                 ) from exc
+            self._validate_references(connection, request.reference_ids)
             revision = trip["revision"] + 1
             connection.execute(
                 "INSERT INTO trip_revisions VALUES (?, ?, ?)",
@@ -109,12 +115,26 @@ class Repository:
             )
             return self._trip(connection, trip_id)
 
+    def _validate_references(self, connection, source_ids):
+        for source_id in set(source_ids):
+            if not connection.execute(
+                "SELECT id FROM knowledge_sources WHERE id=?", (source_id,)
+            ).fetchone():
+                raise AppError(
+                    "reference_missing", "参考资料已删除，请移除后保存", 422, object_id=source_id
+                )
+
     def get_preferences(self) -> dict:
         with self.db.connect() as connection:
             row = connection.execute("SELECT * FROM preferences WHERE id=1").fetchone()
             return {
                 "revision": row["revision"],
                 "preferences": json.loads(row["payload"]),
+                "notes": row["notes"]
+                if row["notes"] is not None
+                else "\n".join(
+                    f"{key}：{value}" for key, value in json.loads(row["payload"]).items()
+                ),
                 "updated_at": row["updated_at"],
             }
 
@@ -145,10 +165,13 @@ class Repository:
         timestamp = now()
         with self.db.connect(write=True) as connection:
             cursor = connection.execute(
-                """UPDATE preferences SET payload=?, revision=revision+1, updated_at=?
+                """UPDATE preferences SET payload=?, notes=?, revision=revision+1, updated_at=?
                 WHERE id=1 AND revision=?""",
                 (
-                    json.dumps(request.preferences, ensure_ascii=False),
+                    json.dumps(
+                        request.preferences if request.notes is None else {}, ensure_ascii=False
+                    ),
+                    request.notes,
                     timestamp,
                     request.expected_revision,
                 ),
@@ -157,6 +180,9 @@ class Repository:
                 raise AppError("revision_conflict", "偏好已更新，请加载最新版本", 409)
             return {
                 "revision": request.expected_revision + 1,
-                "preferences": request.preferences,
+                "preferences": request.preferences if request.notes is None else {},
+                "notes": request.notes
+                if request.notes is not None
+                else "\n".join(f"{key}：{value}" for key, value in request.preferences.items()),
                 "updated_at": timestamp,
             }

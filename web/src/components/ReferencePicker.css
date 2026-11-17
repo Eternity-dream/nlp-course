@@ -1,0 +1,10 @@
+.reference-picker, .reference-list, .reference-options { display: grid; gap: 12px; min-width: 0; }
+.reference-picker > button { justify-self: start; }
+.reference-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--color-border); min-width: 0; }
+.reference-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.reference-name a { color: var(--color-corporate-blue); }
+.reference-status { display: block; font-size: 14px; color: var(--color-slate); }
+.reference-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.reference-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.reference-dialog .card { box-shadow: none; }
+.reference-dialog .knowledge-form-kind { flex-wrap: wrap; }

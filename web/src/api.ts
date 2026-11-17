@@ -148,10 +148,10 @@ export const api = {
     return request<T.PreferenceProfile>('/api/preferences');
   },
 
-  async putPreferences(expectedRevision: number, preferences: Record<string, string>) {
+  async putPreferences(expectedRevision: number, notes: string) {
     return request<T.PreferenceProfile>('/api/preferences', {
       method: 'PUT',
-      body: JSON.stringify({ expected_revision: expectedRevision, preferences }),
+      body: JSON.stringify({ expected_revision: expectedRevision, notes }),
     });
   },
 
@@ -195,6 +195,10 @@ export const api = {
 
   async searchKnowledge(query: string, limit = 8) {
     return request<T.KnowledgeHit[]>(`/api/knowledge/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  },
+
+  async retryKnowledge(id: string) {
+    return request<T.KnowledgeSource>(`/api/knowledge/${id}/retry`, { method: 'POST' });
   },
 
   async deleteKnowledge(id: string) {

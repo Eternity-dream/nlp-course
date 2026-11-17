@@ -2,7 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 MIGRATIONS = {
     1: [
         """CREATE TABLE trips (
@@ -65,6 +65,12 @@ MIGRATIONS = {
         "CHECK(kind IN ('plan','edit'))",
         "ALTER TABLE plan_jobs ADD COLUMN base_revision INTEGER",
         "ALTER TABLE plan_jobs ADD COLUMN edit_payload TEXT",
+    ],
+    6: ["ALTER TABLE preferences ADD COLUMN notes TEXT"],
+    5: [
+        """CREATE TABLE planning_checkpoints (
+            job_id TEXT PRIMARY KEY REFERENCES plan_jobs(id),
+            payload TEXT NOT NULL, updated_at TEXT NOT NULL)""",
     ],
 }
 

@@ -827,3 +827,26 @@ def test_missing_config_after_restart_keeps_history_readable_and_rejects_edit(se
         )
         assert response.status_code == 503
         assert current(client, trip) == base
+
+
+def test_activity_introduction_and_flexible_meal_survive_local_edit(planned_client, original):
+    trip, base = original
+    target = base["days"][0]["activities"][1]
+    description = "本地面食与传统点心风味丰富，可在附近自由品尝。"
+    job = edit(
+        planned_client,
+        trip,
+        base,
+        [
+            {
+                "op": "replace",
+                "activity_id": target["id"],
+                "activity": activity_input(target, description=description, flexible_meal=True),
+            }
+        ],
+    )
+    assert job["status"] == "succeeded"
+    result = current(planned_client, trip)
+    edited = next(a for a in result["days"][0]["activities"] if a["id"] == target["id"])
+    assert edited["description"] == description and edited["flexible_meal"]
+    assert_unchanged(base, result, [1, 2])

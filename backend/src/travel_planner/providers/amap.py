@@ -163,6 +163,8 @@ class Amap:
                     id="amap:" + poi["id"],
                     provider_id=poi["id"],
                     name=poi["name"],
+                    category=text_value(poi.get("type")),
+                    category_code=text_value(poi.get("typecode")),
                     address=text_value(poi.get("address")),
                     longitude=longitude,
                     latitude=latitude,
@@ -200,6 +202,17 @@ class Amap:
                 return unknown
         if not origin.citycode or origin.citycode != destination.citycode:
             return unknown
+        if origin.id == destination.id:
+            # 同一锚点的自由用餐/分段参观没有点间位移，不请求绕行路线。
+            return unknown.model_copy(
+                update={
+                    "mode": "walking",
+                    "duration_seconds": 0,
+                    "distance_meters": 0,
+                    "fare_cents": 0,
+                    "status": "estimated",
+                }
+            )
         params = {
             "origin": f"{origin.longitude:.6f},{origin.latitude:.6f}",
             "destination": f"{destination.longitude:.6f},{destination.latitude:.6f}",

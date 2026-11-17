@@ -161,6 +161,8 @@ export function ActivityEditor({
         end_minute: finish,
         transport_mode: mode,
         costs,
+        description: samePlace && kind === original?.kind ? original?.description ?? '' : '',
+        flexible_meal: kind === 'meal' ? original?.flexible_meal ?? true : false,
       };
       await onSuccess(
         original
@@ -191,7 +193,6 @@ export function ActivityEditor({
         )}
         <form onSubmit={search} className="activity-editor-search" role="search">
           <Input
-            placeholder="输入地点名称"
             aria-label="地点搜索"
             value={query}
             disabled={locked}
@@ -267,7 +268,6 @@ export function ActivityEditor({
                   inputMode="decimal"
                   value={ticketPrice}
                   onChange={(e) => setTicketPrice(e.target.value)}
-                  placeholder="未知"
                 />
                 <Select
                   label="门票计费方式"
@@ -281,7 +281,6 @@ export function ActivityEditor({
                   inputMode="decimal"
                   value={mealPrice}
                   onChange={(e) => setMealPrice(e.target.value)}
-                  placeholder="未知"
                 />
                 <Select
                   label="餐饮计费方式"

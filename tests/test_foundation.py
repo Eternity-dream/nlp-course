@@ -18,7 +18,7 @@ def test_missing_config_is_readable_and_does_not_block_storage(client):
     assert status["search"][0]["protocol"] == "mcp"
     assert status["search"][1]["auth_mode"] == "disabled"
     assert status["connectivity_checked"] is False
-    assert client.get("/api/health").json() == {"status": "ok", "schema_version": 4}
+    assert client.get("/api/health").json() == {"status": "ok", "schema_version": 6}
     assert client.get("/api/preferences").status_code == 200
 
 
@@ -189,3 +189,43 @@ def test_stopped_data_directory_can_be_restored(settings, tmp_path):
         assert client.get("/api/preferences").json()["preferences"] == {"节奏": "慢"}
         assert client.get("/api/knowledge/search", params={"q": "碑林"}).json()
         assert (backup / "sources" / source["id"] / "raw").read_text() == "西安碑林"
+
+
+def test_preference_text_converts_legacy_values_and_preserves_revision(client):
+    old = client.put(
+        "/api/preferences",
+        json={
+            "expected_revision": 1,
+            "preferences": {"节奏": "宽松", "饮食": "不吃辣"},
+        },
+    ).json()
+    assert old["notes"] == "节奏：宽松\n饮食：不吃辣"
+    updated = client.put(
+        "/api/preferences",
+        json={
+            "expected_revision": old["revision"],
+            "notes": "喜欢历史建筑，不吃辣",
+        },
+    ).json()
+    assert updated["preferences"] == {}
+    assert client.get("/api/preferences").json()["notes"] == "喜欢历史建筑，不吃辣"
+    assert (
+        client.put(
+            "/api/preferences",
+            json={
+                "expected_revision": old["revision"],
+                "notes": "旧页面",
+            },
+        ).status_code
+        == 409
+    )
+    assert (
+        client.put(
+            "/api/preferences",
+            json={
+                "expected_revision": updated["revision"],
+                "notes": "",
+            },
+        ).json()["notes"]
+        == ""
+    )

@@ -99,6 +99,43 @@ def test_model_critical_question_does_not_occupy_executor(planned_client, servic
     assert planned_client.get(f"/api/trips/{trip['id']}/itinerary").status_code == 404
 
 
+def test_clarification_appends_answer_and_resumes_same_job(planned_client, services):
+    client = planned_client
+    services.candidate_questions = ["两项预约时间重叠，请选择保留哪一项？"]
+    trip = client.post("/api/trips", json={**TRIP, "known_conditions": ["住南稍门附近"]}).json()
+    _, job = submit(client, trip)
+    assert wait_job(client, job["id"])["status"] == "awaiting_input"
+    answer = {
+        "job_id": job["id"],
+        "request_revision": trip["revision"],
+        "questions": services.candidate_questions,
+        "answer": "保留上午的博物馆预约",
+    }
+    updated = client.patch(
+        f"/api/trips/{trip['id']}",
+        json={
+            "expected_revision": trip["revision"],
+            "known_conditions": [*trip["known_conditions"], answer["answer"]],
+            "clarifications": [answer],
+        },
+    ).json()
+    assert updated["clarifications"] == [answer]
+    services.candidate_questions = []
+    assert (
+        client.post(
+            f"/api/jobs/{job['id']}/resume", json={"expected_revision": updated["revision"]}
+        ).status_code
+        == 202
+    )
+    assert wait_job(client, job["id"])["status"] == "succeeded"
+    assert len(client.get(f"/api/trips/{trip['id']}/jobs").json()) == 1
+    context = next(
+        item for item in reversed(services.contexts) if item["operation"] == "plan_action"
+    )
+    assert context["request"]["clarifications"] == [answer]
+    assert context["request"]["known_conditions"] == ["住南稍门附近", answer["answer"]]
+
+
 def test_failed_save_rolls_back_revision_and_current_pointer(planned_client, services):
     client = planned_client
     trip, first = submit(client)

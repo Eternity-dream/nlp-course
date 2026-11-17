@@ -94,7 +94,7 @@ def test_database_v1_upgrades_and_retains_data(tmp_path):
         connection.execute("INSERT INTO preferences VALUES (1,1,?,?)", ('{"节奏":"慢"}', "time"))
     Database(path).migrate()
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
         assert json.loads(connection.execute("SELECT payload FROM preferences").fetchone()[0]) == {
             "节奏": "慢"
         }

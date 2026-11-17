@@ -42,7 +42,6 @@ export function KnowledgeSearch({ onOpen }: KnowledgeSearchProps) {
     <Card>
       <form onSubmit={handleSearch} className="knowledge-search-form" role="search">
         <Input
-          placeholder="搜索资料"
           aria-label="搜索资料"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

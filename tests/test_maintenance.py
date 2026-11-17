@@ -69,7 +69,7 @@ def rewrite_archive(source, target, change):
 def test_verify_preserves_source_and_reports_counts(data_dir):
     digest = sha256_file(data_dir / "app.sqlite3")
     report = verify(data_dir)
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 6
     assert report["counts"]["trips"] == report["counts"]["request_revisions"] == 1
     assert report["raw_files"] == report["orphan_raw_files"] == 0
     assert report["idle"] is True
@@ -379,7 +379,7 @@ def test_restore_migrates_older_schema_without_modifying_archive(tmp_path):
     digest = sha256_file(path)
     target = tmp_path / "new"
     result = restore(target, path)
-    assert result["restored_from_schema"] == 1 and result["schema_version"] == 4
+    assert result["restored_from_schema"] == 1 and result["schema_version"] == 6
     assert result["counts"]["trips"] == 1
     assert (
         Repository(Database(target / "app.sqlite3")).get_trip(trip["id"])["destination"] == "西安"

@@ -95,6 +95,23 @@
   color: var(--color-slate);
 }
 
+.job-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.job-progress progress {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  accent-color: var(--color-corporate-blue);
+}
+
+.job-progress span { white-space: nowrap; }
+.trip-request-details > summary { cursor: pointer; margin-bottom: 12px; }
+
 .job-status-error {
   padding: var(--spacing-12);
   background: #fee2e2;

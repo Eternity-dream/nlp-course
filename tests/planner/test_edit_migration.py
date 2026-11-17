@@ -27,5 +27,5 @@ def test_v3_tasks_upgrade_to_planning_kind_without_losing_state(tmp_path):
             "SELECT status,kind,base_revision,edit_payload FROM plan_jobs"
         ).fetchone()
         assert row == ("awaiting_input", "plan", None, None)
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
         assert connection.execute("SELECT count(*) FROM trip_revisions").fetchone()[0] == 1

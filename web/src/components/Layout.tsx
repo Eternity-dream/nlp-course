@@ -23,10 +23,12 @@ export function Layout({ children }: LayoutProps) {
 
   const navLinks = [
     { path: '/', label: '行程' },
-    { path: '/knowledge', label: '资料' },
-    { path: '/preferences', label: '偏好' },
-    { path: '/status', label: '服务' },
+    { path: '/settings', label: '设置' },
   ];
+
+  const active = (path: string) => path === '/'
+    ? currentPath === '/' || currentPath.startsWith('/trips')
+    : ['/settings', '/knowledge', '/preferences', '/status'].some((prefix) => currentPath.startsWith(prefix));
 
   return (
     <div className="layout">
@@ -38,8 +40,8 @@ export function Layout({ children }: LayoutProps) {
               <a
                 key={link.path}
                 href={link.path}
-                className={`layout-nav-link ${currentPath === link.path ? 'active' : ''}`}
-                aria-current={currentPath === link.path ? 'page' : undefined}
+                className={`layout-nav-link ${active(link.path) ? 'active' : ''}`}
+                aria-current={active(link.path) ? 'page' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
                   navigate(link.path);

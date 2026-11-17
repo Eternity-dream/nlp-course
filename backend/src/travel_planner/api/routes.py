@@ -232,6 +232,11 @@ def download_original(source_id: str, request: Request):
     return FileResponse(path, filename=filename, media_type="application/octet-stream")
 
 
+@router.post("/knowledge/{source_id}/retry", response_model=KnowledgeSource)
+def retry_knowledge(source_id: str, request: Request):
+    return request.app.state.knowledge.retry(source_id)
+
+
 @router.delete("/knowledge/{source_id}", status_code=204)
 def delete_knowledge(source_id: str, request: Request):
     request.app.state.knowledge.delete(source_id)

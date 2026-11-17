@@ -12,6 +12,34 @@ class JobStore:
     def __init__(self, db: Database):
         self.db = db
 
+    def checkpoint(self, job: dict) -> dict | None:
+        with self.db.connect() as connection:
+            for job_id in (job["id"], job.get("retry_of")):
+                if job_id:
+                    row = connection.execute(
+                        "SELECT payload FROM planning_checkpoints WHERE job_id=?", (job_id,)
+                    ).fetchone()
+                    if row:
+                        return json.loads(row[0])
+        return None
+
+    def save_checkpoint(self, job: dict, payload: dict):
+        with self.db.connect(write=True) as connection:
+            row = require(
+                connection.execute(
+                    "SELECT status FROM plan_jobs WHERE id=?", (job["id"],)
+                ).fetchone(),
+                job["id"],
+            )
+            if row["status"] != "running":
+                raise AppError("job_not_running", "任务已停止，工作状态未写入", 409)
+            connection.execute(
+                "INSERT INTO planning_checkpoints VALUES (?,?,?) "
+                "ON CONFLICT(job_id) DO UPDATE SET payload=excluded.payload,"
+                "updated_at=excluded.updated_at",
+                (job["id"], json.dumps(payload, ensure_ascii=False), now()),
+            )
+
     def _job(self, connection, job_id: str) -> dict:
         row = require(
             connection.execute("SELECT * FROM plan_jobs WHERE id=?", (job_id,)).fetchone(), job_id
@@ -30,6 +58,31 @@ class JobStore:
                 (job_id,),
             )
         ]
+        stages = {
+            "conditions": 3,
+            "knowledge": 8,
+            "planning": 12,
+            "places": 25,
+            "evidence": 45,
+            "generation": 60,
+            "routes": 72,
+            "validation": 80,
+            "review": 88,
+            "introduction": 95,
+            "repair": 90,
+            "saving": 97,
+            "saved": 100,
+            "editing": 10,
+            "reschedule": 70,
+            "constraints": 80,
+        }
+        result["progress_estimate"] = (
+            100
+            if result["status"] == "succeeded"
+            else min(
+                95, max((stages.get(event["stage"], 5) for event in result["events"]), default=0)
+            )
+        )
         return result
 
     def get(self, job_id: str) -> dict:

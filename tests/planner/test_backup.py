@@ -7,7 +7,7 @@ from travel_planner.maintenance.archive import backup, restore, verify
 from travel_planner.maintenance.errors import DataError
 from travel_planner.storage.database import Database
 
-from .conftest import config, submit, wait_job
+from .conftest import TRIP, config, submit, wait_job
 from .test_editing import current, edit
 
 
@@ -17,12 +17,15 @@ def test_backup_restores_versions_jobs_materials_preferences_and_allows_further_
     with TestClient(
         create_app(config(settings), provider_transport=httpx.MockTransport(services))
     ) as client:
-        client.put("/api/preferences", json={"expected_revision": 1, "preferences": {"节奏": "慢"}})
+        client.put(
+            "/api/preferences", json={"expected_revision": 1, "notes": "节奏宽松，喜欢历史建筑"}
+        )
         source = client.post(
             "/api/knowledge", json={"title": "西安笔记", "text": "西安碑林博物馆参观笔记。"}
         ).json()
         assert wait_source(client, source["id"])["status"] == "ready"
-        trip, planned = submit(client)
+        selected = client.post("/api/trips", json={**TRIP, "reference_ids": [source["id"]]}).json()
+        trip, planned = submit(client, selected)
         assert wait_job(client, planned["id"])["status"] == "succeeded"
         original = current(client, trip)
         edited = edit(

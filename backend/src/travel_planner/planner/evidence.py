@@ -1,13 +1,14 @@
 import re
 from collections import defaultdict
 
-from travel_planner.planner.models import ExtractedFacts, FactEvidence
+from travel_planner.planner.fact_verification import normalized, verify_claim
+from travel_planner.planner.models import ExtractedFacts, FactChecks, FactClaim, FactEvidence
 from travel_planner.providers.models import Place, SearchSource
 from travel_planner.storage.repository import new_id
 
 
 def compact(text: str) -> str:
-    return re.sub(r"\s+", "", text)
+    return normalized(text)
 
 
 def minute_present(minute: int, text: str) -> bool:
@@ -48,14 +49,21 @@ def date_present(claim, text: str) -> bool:
 
 
 def build_evidence(
-    extracted: ExtractedFacts, sources: dict[str, SearchSource], places: dict[str, Place]
+    extracted: ExtractedFacts,
+    sources: dict[str, SearchSource],
+    places: dict[str, Place],
+    checks=None,
 ) -> list[FactEvidence]:
     evidence = []
-    for claim in extracted.claims:
+    check_map = {check.claim_index: check for check in checks.checks} if checks else {}
+    for index, claim in enumerate(extracted.claims):
         source, place = sources[claim.source_id], places[claim.place_id]
         text, quote = compact(source.text or ""), compact(claim.quote)
         status, reason = "supported", "正文引用、地点与日期可对应"
-        if not source.text or not source.fetched_at or quote not in text:
+        verification = {}
+        if claim.identity_quote or claim.applicability or checks is not None:
+            status, reason, verification = verify_claim(claim, source, place, check_map.get(index))
+        elif not source.text or not source.fetched_at or quote not in text:
             status, reason = "unknown", "来源缺少正文或引用片段未在正文中找到"
         elif (
             not place.address
@@ -77,18 +85,31 @@ def build_evidence(
                         r"(?:\d{4}-\d{2}-\d{2}|\d{4}年\d{1,2}月\d{1,2}日)[^\d:：]{0,8}闭馆", quote
                     )
                 )
+                if verification.get("interpretation") == "supported" and claim.applicability:
+                    values_supported |= "闭馆" in quote or "休息" in quote
             else:
                 values_supported = bool(claim.windows) and all(
                     minute_present(window.start_minute, quote)
                     and minute_present(window.end_minute, quote)
-                    and interval_present(window, quote)
+                    and (
+                        interval_present(window, quote)
+                        or (
+                            verification.get("interpretation") == "supported"
+                            and labelled_interval_present(window, quote)
+                        )
+                    )
                     for window in claim.windows
                 )
                 if claim.last_entry_minute is not None:
                     values_supported &= minute_present(claim.last_entry_minute, quote) and any(
                         marker in quote
-                        for marker in ("停止检票", "停止入场", "停止入馆", "停止售票")
+                        for marker in ("停止检票", "停止入场", "停止入馆", "停止入园", "停止售票")
                     )
+        elif claim.kind == "reservation":
+            values_supported = claim.reservation_required is not None and bool(
+                claim.reservation_note
+            )
+            values_supported &= any(marker in quote for marker in ("预约", "免预约", "无需预约"))
         else:
             if claim.amount_cents is None:
                 values_supported = False
@@ -129,12 +150,38 @@ def build_evidence(
                 fetched_at=source.fetched_at,
                 status=status,
                 reason=reason,
+                verification={
+                    **verification,
+                    "values": "matched" if values_supported else "unmatched",
+                },
             )
         )
+    reconcile_conflicts(evidence)
+    return evidence
+
+
+def labelled_interval_present(window, text):
+    def labelled(markers, minute):
+        for marker in markers:
+            for match in re.finditer(marker + r"(?:时间)?[:：]?", text):
+                if minute_present(minute, text[match.end() : match.end() + 8]):
+                    return True
+                if not re.match(r"\d{1,2}[:时点]", text[match.end() :]) and minute_present(
+                    minute, text[max(0, match.start() - 8) : match.start()]
+                ):
+                    return True
+        return False
+
+    return labelled(
+        ("开放入馆", "开放", "开馆", "开园", "营业开始"), window.start_minute
+    ) and labelled(("闭馆", "闭园", "关门", "营业结束"), window.end_minute)
+
+
+def reconcile_conflicts(evidence):
     grouped = defaultdict(list)
     for item in evidence:
-        if item.status in {"supported", "estimated"}:
-            grouped[(item.place_id, item.on_date, item.kind)].append(item)
+        if item.status in {"supported", "estimated", "conflict"}:
+            grouped[(item.place_id, item.on_date, item.kind, item.price_scope)].append(item)
     for group in grouped.values():
         values = {
             (
@@ -143,6 +190,7 @@ def build_evidence(
                 item.last_entry_minute,
                 item.amount_cents,
                 item.basis,
+                item.reservation_required,
             )
             for item in group
         }
@@ -152,4 +200,35 @@ def build_evidence(
                     "conflict",
                     "同一地点与日期的来源取值不一致，保留各来源待确认",
                 )
-    return evidence
+
+
+def recheck_saved_evidence(facts, sources, places):
+    """恢复任务时重算原文与日期校验，复用已保存的独立语义审核。"""
+    result = []
+    for fact in facts:
+        review = fact.verification
+        if review.get("identity") not in {"matched", "mismatch", "uncertain"}:
+            result.append(fact)
+            continue
+        if fact.source_id not in sources or fact.place_id not in places:
+            result.append(fact)
+            continue
+        checks = FactChecks(
+            checks=[
+                {
+                    "claim_index": 0,
+                    "identity": review["identity"],
+                    "interpretation": review["interpretation"],
+                    "authority": review["authority"],
+                    "reason": fact.reason,
+                }
+            ]
+        )
+        claim = FactClaim.model_validate(
+            {key: getattr(fact, key) for key in FactClaim.model_fields}
+        )
+        refreshed = build_evidence(ExtractedFacts(claims=[claim]), sources, places, checks)[0]
+        refreshed.id = fact.id
+        result.append(refreshed)
+    reconcile_conflicts(result)
+    return result

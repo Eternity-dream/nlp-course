@@ -377,3 +377,32 @@ def test_numeric_substrings_do_not_support_wrong_fact_values(rule_data):
     assert (
         build_evidence(ExtractedFacts(claims=[claim]), {"s": source}, places)[0].status == "unknown"
     )
+
+
+def test_partial_arrival_and_departure_days_do_not_require_full_day(rule_data):
+    from travel_planner.planner.validation import validate_plan
+
+    request, draft, places, facts_and_routes = rule_data
+    request["time_constraints"] = [
+        {"kind": "arrival", "on_date": "2026-12-01", "minute": 840},
+        {"kind": "departure", "on_date": "2026-12-03", "minute": 900},
+    ]
+    draft.days[0].activities = draft.days[0].activities[1:]
+    draft.days[0].activities[0].start_minute = 840
+    draft.days[0].activities[0].end_minute = 900
+    draft.days[-1].activities = draft.days[-1].activities[:2]
+    result = validate_plan(request, draft, places, [], facts_and_routes)
+    assert not any(item.rule == "day_coverage" for item in result.issues)
+
+
+def test_flexible_meal_does_not_use_anchor_opening_hours(rule_data):
+    request, draft, places, transport = rule_data
+    meal = draft.days[0].activities[1]
+    meal.flexible_meal = True
+    closed = evidence(closed=True, windows=[])
+    result = validate_plan(request, draft, places, [closed], transport)
+    assert not any(
+        meal.id in issue.object_ids and issue.rule in {"closed", "opening_hours"}
+        for issue in result.issues
+    )
+    assert any(issue.rule == "closed" for issue in result.issues)

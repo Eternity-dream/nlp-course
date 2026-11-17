@@ -1,0 +1,6 @@
+.settings-page { max-width: 720px; margin: 0 auto; }
+.settings-page h1 { margin-bottom: 24px; font-size: 30px; }
+.settings-links { display: grid; gap: 12px; }
+.settings-links a { display: flex; align-items: center; gap: 16px; padding: 24px; color: var(--color-text); background: white; border: 1px solid var(--color-border); border-radius: var(--radius-card); text-decoration: none; }
+.settings-links a span { flex: 1; }
+.settings-links a:hover { border-color: var(--color-corporate-blue); }

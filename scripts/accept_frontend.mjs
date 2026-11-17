@@ -68,27 +68,24 @@ try {
   await page.goto(base);
   await page.getByRole('heading', { name: '我的行程' }).waitFor();
   await capture('desktop-home', true);
-  await page.getByRole('link', { name: '偏好', exact: true }).click();
-  await page.getByRole('heading', { name: '偏好', exact: true }).waitFor();
+  assert.deepEqual(await page.locator('header nav a').allTextContents(), ['行程', '设置']);
+  await page.getByRole('link', { name: '设置', exact: true }).click();
+  await page.getByRole('link', { name: '旅行偏好', exact: true }).click();
+  await page.getByRole('heading', { name: '旅行偏好', exact: true }).waitFor();
   const clear = page.getByRole('button', { name: '清空', exact: true });
-  if (await clear.isEnabled()) {
-    await clear.click();
-    await poll(() => api('/api/preferences'), data => Object.keys(data.preferences).length === 0);
-  }
-  await page.getByRole('button', { name: '添加偏好' }).click();
-  await page.getByPlaceholder('节奏', { exact: true }).fill('节奏');
-  await page.getByPlaceholder('慢节奏', { exact: true }).fill('慢节奏');
+  await page.getByRole('textbox', { name: '旅行习惯' }).fill('喜欢历史建筑，慢节奏，不吃辣');
   await page.getByRole('button', { name: '保存', exact: true }).click();
-  await poll(() => api('/api/preferences'), data => data.preferences['节奏'] === '慢节奏');
+  await poll(() => api('/api/preferences'), data => data.notes === '喜欢历史建筑，慢节奏，不吃辣');
   await capture('desktop-preferences', true);
   await clear.click();
-  await poll(() => api('/api/preferences'), data => Object.keys(data.preferences).length === 0);
+  await poll(() => api('/api/preferences'), data => data.notes === '');
   checked('偏好保存与清空');
 
-  await page.getByRole('link', { name: '资料', exact: true }).click();
+  await page.getByRole('link', { name: '设置', exact: true }).click();
+  await page.getByRole('link', { name: '参考资料', exact: true }).click();
   await page.getByRole('button', { name: '添加资料', exact: true }).first().click();
   const title = `浏览器西安笔记 ${Date.now()}`;
-  await page.getByLabel('标题', { exact: true }).fill(title);
+  await page.getByLabel('标题（选填）', { exact: true }).fill(title);
   await page.getByLabel('正文', { exact: true }).fill(`西安碑林博物馆适合参观。${title}。`);
   await page.getByRole('button', { name: '添加', exact: true }).click();
   const sources = await poll(() => api('/api/knowledge'), data => data.some(s => s.title === title && s.status === 'ready'));
@@ -107,11 +104,26 @@ try {
   await page.getByLabel('结束日期', { exact: true }).fill('2026-12-03');
   await page.getByLabel('同行人数', { exact: true }).fill('2');
   await page.getByLabel(/预算/).fill('3000.55');
+  await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
+  const inlineTitle = `西安表单参考 ${Date.now()}`;
+  await page.getByRole('dialog').getByLabel('正文', { exact: true }).fill(inlineTitle);
+  await page.getByRole('dialog').getByRole('button', { name: '添加', exact: true }).click();
+  await page.getByRole('link', { name: inlineTitle, exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, '/');
+  assert.equal(await page.getByLabel('目的地', { exact: true }).inputValue(), '西安');
+  await page.getByRole('button', { name: `移除${inlineTitle}`, exact: true }).click();
+  await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
+  await page.getByRole('button', { name: '已有资料', exact: true }).click();
+  await page.getByRole('checkbox', { name: new RegExp(inlineTitle) }).waitFor();
+  checked('表单内导入参考、自动标题、保留输入与移除关联');
+  await page.getByRole('checkbox', { name: new RegExp(title) }).check();
+  await page.getByRole('button', { name: '完成', exact: true }).click();
   await capture('desktop-trip-form', true);
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await page.waitForURL(/\/trips\//);
   const tripId = new URL(page.url()).pathname.split('/')[2];
   report.trip_id = tripId;
+  assert.deepEqual((await api(`/api/trips/${tripId}`)).reference_ids, [report.source_id]);
   assert.equal((await api(`/api/trips/${tripId}`)).budget_cents, 300055);
   await page.getByText('¥3000.55', { exact: true }).waitFor();
   await page.getByRole('button', { name: '生成行程', exact: true }).click();
@@ -230,18 +242,77 @@ try {
   });
   await poll(() => api(`/api/jobs/${job.id}`), data => data.status === 'awaiting_input');
   await page.goto(base + `/trips/${incomplete.id}`);
-  await page.getByRole('button', { name: '补充要求', exact: true }).click();
+  const clarification = page.getByRole('dialog', { name: '补充说明', exact: true });
+  await clarification.waitFor();
   await page.getByLabel('开始日期', { exact: true }).fill('2026-12-01');
   await page.getByLabel('结束日期', { exact: true }).fill('2026-12-03');
   await page.getByLabel('同行人数', { exact: true }).fill('2');
+  await clarification.getByLabel('你的补充', { exact: true }).fill('住南稍门附近，喜欢历史文化');
   // 跨越一次后台轮询，验证输入保持且继续任务使用新的条件版本。
   await page.waitForTimeout(2200);
   assert.equal(await page.getByLabel('同行人数', { exact: true }).inputValue(), '2');
-  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await clarification.getByRole('button', { name: '稍后补充', exact: true }).click();
+  await page.waitForTimeout(2200);
+  assert.equal(await clarification.isVisible(), false);
+  await page.getByRole('button', { name: '补充说明', exact: true }).click();
+  assert.equal(await clarification.getByLabel('你的补充').inputValue(), '住南稍门附近，喜欢历史文化');
+  await capture('desktop-clarification', true);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await capture('mobile-320-clarification', true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  let rejectPatch = true;
+  let rejectResume = true;
+  await page.route(`**/api/trips/${incomplete.id}`, async route => {
+    if (route.request().method() === 'PATCH' && rejectPatch) {
+      rejectPatch = false;
+      return route.fulfill({ status: 409, json: { error: { code: 'revision_conflict', message: '条件已更新，请重试' } } });
+    }
+    return route.continue();
+  });
+  await page.route(`**/api/jobs/${job.id}/resume`, async route => {
+    if (rejectResume) {
+      rejectResume = false;
+      return route.fulfill({ status: 503, json: { error: { code: 'unavailable', message: '暂时无法继续，请重试' } } });
+    }
+    return route.continue();
+  });
+  await clarification.getByRole('button', { name: '保存并继续', exact: true }).click();
+  await clarification.getByRole('alert').filter({ hasText: '条件已更新' }).waitFor();
+  assert.equal(await clarification.getByLabel('你的补充').inputValue(), '住南稍门附近，喜欢历史文化');
+  assert.equal((await api(`/api/trips/${incomplete.id}`)).revision, 1);
+  await clarification.getByRole('button', { name: '保存并继续', exact: true }).click();
+  await clarification.getByRole('alert').filter({ hasText: '暂时无法继续' }).waitFor();
+  const savedClarification = await api(`/api/trips/${incomplete.id}`);
+  assert.equal(savedClarification.revision, 2);
+  assert.equal(savedClarification.clarifications.length, 1);
+  await clarification.getByRole('button', { name: '保存并继续', exact: true }).click();
   const resumed = await poll(() => api(`/api/jobs/${job.id}`), data => data.status === 'succeeded');
   assert.equal(resumed.request_revision, 2);
+  assert.deepEqual((await api(`/api/trips/${incomplete.id}`)).clarifications, savedClarification.clarifications);
+  await page.unroute(`**/api/trips/${incomplete.id}`);
+  await page.unroute(`**/api/jobs/${job.id}/resume`);
+  assert((await api(`/api/trips/${incomplete.id}`)).known_conditions.join('\n').includes('住南稍门附近，喜欢历史文化'));
   await page.getByRole('heading', { name: '行程草案', exact: true }).waitFor();
   checked('补充条件保留输入、原任务继续');
+
+  assert.equal(await page.locator('.trip-request-details').getAttribute('open'), null);
+  assert.equal(await page.locator('.itinerary-details').getAttribute('open'), null);
+  assert.equal(await page.locator('.validation-issues').count(), 0);
+  const progressJobs = url => url.pathname === `/api/trips/${incomplete.id}/jobs`;
+  await page.route(progressJobs, route => route.fulfill({ json: [{
+    ...resumed, status: 'running', stage: 'routes', progress_estimate: 72,
+  }, resumed] }));
+  await page.reload();
+  const progress = page.getByRole('progressbar', { name: '预计进度' });
+  await progress.waitFor();
+  assert.equal(await progress.getAttribute('value'), '72');
+  await page.getByText('预计 72%', { exact: true }).waitFor();
+  await capture('desktop-estimated-progress', true);
+  await page.unroute(progressJobs);
+  await page.reload();
+  await page.getByRole('heading', { name: '行程草案', exact: true }).waitFor();
+  await capture('desktop-itinerary-list', true);
+  checked('预计进度与完成后行程优先展示');
 
   await page.goto(base + '/status');
   await page.getByRole('heading', { name: '服务状态', exact: true }).waitFor();

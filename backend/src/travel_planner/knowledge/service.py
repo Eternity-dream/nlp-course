@@ -214,19 +214,47 @@ class KnowledgeService:
             except OSError:
                 logger.warning("knowledge_file_cleanup_pending")
 
-    def search(self, query: str, limit: int = 8) -> list[dict]:
+    def retry(self, source_id: str) -> dict:
+        with self.db.connect(write=True) as connection:
+            row = require(
+                connection.execute(
+                    "SELECT * FROM knowledge_sources WHERE id=?", (source_id,)
+                ).fetchone(),
+                source_id,
+            )
+            if row["status"] == "failed":
+                connection.execute("DELETE FROM knowledge_chunks WHERE source_id=?", (source_id,))
+                connection.execute(
+                    "UPDATE knowledge_sources SET status='pending',error=NULL,updated_at=? "
+                    "WHERE id=?",
+                    (now(), source_id),
+                )
+        self.wake_event.set()
+        result = self.get(source_id)
+        result.pop("chunks")
+        return result
+
+    def search(self, query: str, limit: int = 8, source_ids: list[str] | None = None) -> list[dict]:
+        if source_ids == []:
+            return []
         words = tokens(query)[:64]
         if not words:
             return []
         expression = " OR ".join('"' + word.replace('"', '""') + '"' for word in words)
+        scope_sql = ""
+        params = [expression]
+        if source_ids is not None:
+            scope_sql = " AND s.id IN (" + ",".join("?" for _ in source_ids) + ")"
+            params.extend(source_ids)
         with self.db.connect() as connection:
             rows = connection.execute(
                 """SELECT c.*, s.title, s.url, bm25(knowledge_fts) AS score
                 FROM knowledge_fts JOIN knowledge_chunks c ON c.id=knowledge_fts.chunk_id
                 JOIN knowledge_sources s ON s.id=c.source_id
-                WHERE knowledge_fts MATCH ? AND s.status='ready'
-                ORDER BY score, c.id LIMIT 64""",
-                (expression,),
+                WHERE knowledge_fts MATCH ? AND s.status='ready'"""
+                + scope_sql
+                + " ORDER BY score, c.id LIMIT 64",
+                params,
             ).fetchall()
             hits, seen = [], set()
             for row in rows:

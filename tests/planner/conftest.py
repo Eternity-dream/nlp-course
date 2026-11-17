@@ -84,8 +84,11 @@ class TravelServices:
         self.contexts = []
         self.extra_places = []
         self.prices = {"P1": 10000, "P2": 3000, "P3": 0}
-        self.block_operation = "candidates"
+        self.block_operation = "plan_action"
         self.constraint_conflicts = []
+        self.quality_findings = []
+        self.agent_decisions = []
+        self.transform_result = None
 
     def places(self):
         return [
@@ -125,16 +128,82 @@ class TravelServices:
                 if self.block:
                     while not self.block.is_set():
                         await asyncio.sleep(0.01)
-            if operation == "candidates":
+            if operation == "plan_action":
                 self.city = context["request"]["destination"]
                 start, end = (
                     date.fromisoformat(context["request"]["start_date"]),
                     date.fromisoformat(context["request"]["end_date"]),
                 )
                 self.days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+                if self.agent_decisions:
+                    action = self.agent_decisions.pop(0)
+                elif self.candidate_questions:
+                    action = {"kind": "ask", "questions": self.candidate_questions}
+                elif not context["intent"]:
+                    action = {"kind": "interpret", "intent": {"summary": "按用户条件安排旅行"}}
+                elif not context["places"]:
+                    action = {
+                        "kind": "places",
+                        "queries": [
+                            {"query": "博物馆", "purpose": "sightseeing"},
+                            {"query": "餐馆", "purpose": "meal"},
+                            {"query": "公园", "purpose": "leisure"},
+                        ],
+                    }
+                elif not any(row["action"] == "research" for row in context["recent_actions"]):
+                    action = {
+                        "kind": "research",
+                        "queries": [
+                            {"place_id": place["id"], "topic": "开放时间 票价 官方"}
+                            for place in context["places"]
+                        ],
+                    }
+                elif not context["current_draft"] or (
+                    context["validation"]
+                    and context["validation"]["status"] == "blocked"
+                    and context["remaining"]["drafts"] > 0
+                ):
+                    action = {
+                        "kind": "draft",
+                        "instructions": "按审核调整行程",
+                        "selected_place_ids": [place["id"] for place in context["places"]],
+                    }
+                else:
+                    action = {"kind": "finish"}
+                result = {"purpose": "继续规划", "action": action}
+            elif operation == "plan_research":
                 result = {
-                    "place_keywords": ["博物馆", "餐馆", "公园"],
-                    "questions": self.candidate_questions,
+                    "queries": [
+                        {"place_id": place["id"], "topic": "开放时间 票价 官方"}
+                        for place in context["places"]
+                    ]
+                }
+            elif operation == "review_itinerary":
+                result = {"findings": self.quality_findings}
+            elif operation == "introductions":
+                result = {
+                    "introductions": [
+                        {
+                            "activity_id": a["activity_id"],
+                            "description": "本地面食与点心风味丰富。"
+                            if a["kind"] == "meal"
+                            else "这里可以了解城市的历史与文化。",
+                        }
+                        for a in context["activities"]
+                    ]
+                }
+            elif operation == "verify_facts":
+                result = {
+                    "checks": [
+                        {
+                            "claim_index": claim["claim_index"],
+                            "identity": "matched",
+                            "interpretation": "supported",
+                            "authority": "official",
+                            "reason": "测试官方正文与地点和日期一致",
+                        }
+                        for claim in context["claims"]
+                    ]
                 }
             elif operation == "extract_facts":
                 result = {"claims": []}
@@ -153,6 +222,12 @@ class TravelServices:
                                 "on_date": day.isoformat(),
                                 "source_id": source["id"],
                                 "quote": self.quote(raw, day),
+                                "identity_quote": self.quote(raw, day),
+                                "applicability": {
+                                    "mode": "exact",
+                                    "start_date": day.isoformat(),
+                                    "quote": self.quote(raw, day),
+                                },
                             }
                             result["claims"].append(
                                 {
@@ -227,6 +302,8 @@ class TravelServices:
                     "assumptions": ["按分钟安排弹性时段"],
                     "constraint_conflicts": self.constraint_conflicts,
                 }
+            if self.transform_result:
+                result = self.transform_result(context, result)
             return httpx.Response(
                 200,
                 json={

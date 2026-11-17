@@ -31,6 +31,7 @@ uv run uvicorn travel_planner.main:app --host 127.0.0.1 --port 8000 --no-access-
 
 | 文档 | 内容 |
 | --- | --- |
+| [动态旅行规划](docs/agent-planning.md) | LLM 动作循环、独立审核、状态恢复、运行边界与六天验收。 |
 | [产品需求](docs/requirements.md) | 用户流程、已确认规则与规划状态。 |
 | [推进计划](docs/plan.md) | 阶段交付物、数据契约概览与实际进度。 |
 | [首版实施设计](docs/implementation.md) | 模块、接口、任务状态、数据格式及 W1–W6 工作包。 |

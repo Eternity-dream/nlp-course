@@ -12,7 +12,7 @@
 | 服务端 | FastAPI，提供 API 与构建后的网页。 |
 | 模型接入 | 用户配置 `base_url + api_key + model`，采用 OpenAI 兼容 Chat Completions；验证时使用 DeepSeek。 |
 | 网页搜索 | Exa → Tavily → AnySearch 顺序回退；Exa 无 Key 时使用官方匿名托管 MCP。 |
-| Agent | Python 显式阶段流程，应用负责状态、超时和有限重试。 |
+| Agent | Python 动作执行循环，LLM 动态选择查询、生成和修复，独立模型审核反馈；应用负责引用校验、状态、超时和调用上限。 |
 | 任务执行 | 进程内一次运行一个规划任务，其余排队；任务状态持久化，异常中断后由用户重试。 |
 | 业务存储 | SQLite 保存偏好、行程、任务与资料元数据；原始资料存于持久化目录。 |
 | 知识库检索 | 中文分词与 SQLite FTS5 本地关键词检索，命中片段与结构化偏好用于规划。 |

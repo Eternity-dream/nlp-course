@@ -219,7 +219,7 @@ export function KnowledgePage() {
   return (
     <div className="knowledge-page">
       <div className="knowledge-header">
-        <h1 className="knowledge-title">知识库</h1>
+        <h1 className="knowledge-title">参考资料</h1>
         <div className="knowledge-header-actions">
           <Button
             variant="secondary"
@@ -497,11 +497,12 @@ function KnowledgeDetailCard({
 }
 
 interface KnowledgeFormProps {
-  onSuccess: () => void;
+  onSuccess: (source: KnowledgeSource) => void;
   onCancel: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
+export function KnowledgeForm({ onSuccess, onCancel, onBusyChange }: KnowledgeFormProps) {
   const [kind, setKind] = useState<'text' | 'url' | 'bookmark' | 'file'>('text');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -511,32 +512,37 @@ function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    e.stopPropagation();
+    if (loading) return;
     setError('');
 
     try {
       setLoading(true);
+      onBusyChange?.(true);
+      let source: KnowledgeSource;
       if (kind === 'file') {
         if (!file) {
           setError('请选择文件');
           return;
         }
-        await api.uploadKnowledgeFile(title.trim(), file);
+        source = await api.uploadKnowledgeFile(title.trim() || file.name.slice(0, 500), file);
       } else {
-        await api.createKnowledge(kind, title.trim(), content.trim());
+        const fallback = kind === 'text' ? content.trim().split('\n')[0].slice(0, 80) : content.trim().slice(0, 500);
+        source = await api.createKnowledge(kind, title.trim() || fallback, content.trim());
       }
-      onSuccess();
+      onSuccess(source);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
       setLoading(false);
+      onBusyChange?.(false);
     }
   }
 
   const kinds: { value: typeof kind; label: string }[] = [
-    { value: 'text', label: '文本' },
-    { value: 'url', label: '链接' },
-    { value: 'bookmark', label: '收藏' },
-    { value: 'file', label: '文件' },
+    { value: 'text', label: '粘贴文字' },
+    { value: 'url', label: '添加链接' },
+    { value: 'file', label: '上传文件' },
   ];
 
   return (
@@ -565,11 +571,9 @@ function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
         </fieldset>
 
         <Input
-          label="标题"
+          label="标题（选填）"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          required
-          placeholder="西安攻略"
         />
 
         {kind === 'text' && (
@@ -578,7 +582,6 @@ function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             required
-            placeholder="碑林博物馆可以安排半天参观"
             rows={8}
           />
         )}
@@ -590,7 +593,6 @@ function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             required
-            placeholder="https://example.com/guide"
           />
         )}
 
@@ -604,7 +606,7 @@ function KnowledgeForm({ onSuccess, onCancel }: KnowledgeFormProps) {
         )}
 
         <div className="knowledge-form-actions">
-          <Button type="button" variant="secondary" onClick={onCancel}>
+          <Button type="button" variant="secondary" disabled={loading} onClick={onCancel}>
             取消
           </Button>
           <Button type="submit" loading={loading}>

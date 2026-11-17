@@ -1,3 +1,4 @@
+import { ReferencePicker } from './ReferencePicker';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../api';
@@ -16,6 +17,7 @@ import {
   type ConstraintDraft,
 } from '../utils/trip';
 import './TripForm.css';
+import { tripNotes, updateTripNotes } from '../utils/notes';
 
 interface TripFormProps {
   trip?: Trip;
@@ -23,11 +25,8 @@ interface TripFormProps {
   onCancel: () => void;
 }
 
-function splitLines(value: string): string[] {
-  return value.split('\n').map((s) => s.trim()).filter(Boolean);
-}
-
 export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
+  const [referenceIds, setReferenceIds] = useState(trip?.reference_ids ?? []);
   const [destination, setDestination] = useState(trip?.destination || '');
   const [startDate, setStartDate] = useState(trip?.start_date || '');
   const [endDate, setEndDate] = useState(trip?.end_date || '');
@@ -35,11 +34,7 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
   const [budget, setBudget] = useState(
     trip?.budget_cents != null ? (trip.budget_cents / 100).toString() : ''
   );
-  const [requirements, setRequirements] = useState((trip?.requirements || []).join('\n'));
-  const [priorities, setPriorities] = useState((trip?.priorities || []).join('\n'));
-  const [knownConditions, setKnownConditions] = useState(
-    (trip?.known_conditions || []).join('\n')
-  );
+  const [notes, setNotes] = useState(tripNotes(trip).join('\n'));
   const [constraints, setConstraints] = useState<ConstraintDraft[]>(() =>
     (trip?.time_constraints || []).map(constraintToDraft)
   );
@@ -63,7 +58,9 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
     let travelersValue: number | null;
     let budgetCents: number | null;
     let timeConstraints: TimeConstraint[];
+    let noteFields: ReturnType<typeof updateTripNotes>;
     try {
+      noteFields = updateTripNotes(notes, trip);
       travelersValue = parseTravelers(travelers);
       budgetCents = parseBudget(budget);
       timeConstraints = buildTimeConstraints(constraints, {
@@ -77,13 +74,12 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
 
     const fields: TripFields = {
       destination: destination.trim(),
+      reference_ids: referenceIds,
       start_date: startDate || null,
       end_date: endDate || null,
       travelers: travelersValue,
       budget_cents: budgetCents,
-      requirements: splitLines(requirements),
-      priorities: splitLines(priorities),
-      known_conditions: splitLines(knownConditions),
+      ...noteFields,
       time_constraints: timeConstraints,
     };
 
@@ -116,7 +112,6 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
           label="目的地"
           value={destination}
           onChange={(e) => setDestination(e.target.value)}
-          placeholder="西安"
           required
         />
 
@@ -141,37 +136,22 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
             inputMode="numeric"
             value={travelers}
             onChange={(e) => setTravelers(e.target.value)}
-            placeholder="2"
           />
           <Input
-            label="全程预算（元）"
+            label="门票、餐饮及当地交通预算（元，选填）"
             inputMode="decimal"
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
-            placeholder="3000"
           />
         </div>
 
         <Textarea
-          label="要求"
-          value={requirements}
-          onChange={(e) => setRequirements(e.target.value)}
-          placeholder="素食"
+          label="补充说明（选填）"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
         />
 
-        <Textarea
-          label="重点"
-          value={priorities}
-          onChange={(e) => setPriorities(e.target.value)}
-          placeholder="博物馆"
-        />
-
-        <Textarea
-          label="已知条件"
-          value={knownConditions}
-          onChange={(e) => setKnownConditions(e.target.value)}
-          placeholder="住在钟楼附近"
-        />
+        <ReferencePicker ids={referenceIds} onChange={setReferenceIds} />
 
         <div className="trip-form-section">
           <div className="trip-form-section-header">
@@ -241,7 +221,6 @@ export function TripForm({ trip, onSuccess, onCancel }: TripFormProps) {
                 label="地点"
                 value={item.place}
                 onChange={(e) => updateConstraint(index, { place: e.target.value })}
-                placeholder={item.kind === 'reservation' ? '具体场馆' : '可选'}
               />
               <Button
                 type="button"

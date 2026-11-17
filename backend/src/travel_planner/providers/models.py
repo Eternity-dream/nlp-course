@@ -50,6 +50,8 @@ class Place(Model):
     queried_at: datetime
     opening_hours_text: str | None = None
     cost_text: str | None = None
+    category: str | None = None
+    category_code: str | None = None
 
 
 class Route(Model):

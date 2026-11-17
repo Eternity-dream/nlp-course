@@ -22,7 +22,7 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8000/api/health
 ```
 
-浏览器打开 `http://127.0.0.1:8000`。健康检查成功时返回 `status: ok` 和 `schema_version: 4`。健康检查读取本地数据库，外部模型与地图的连通性由页面的显式服务检查判断，接口文档位于 `/api/docs`。
+浏览器打开 `http://127.0.0.1:8000`。健康检查成功时返回 `status: ok` 和 `schema_version: 6`。健康检查读取本地数据库，外部模型与地图的连通性由页面的显式服务检查判断，接口文档位于 `/api/docs`。
 
 Linux 使用相同的 Docker 命令，首次复制配置用 `cp .env.example .env`，HTTP 检查可用 `curl http://127.0.0.1:8000/api/health`。
 

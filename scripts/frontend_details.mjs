@@ -31,9 +31,9 @@ export async function checkKnowledgeDetails({ page, base, api, poll, capture, ch
 
   await page.goto(base + '/knowledge');
   await page.getByRole('button', { name: '添加资料', exact: true }).first().click();
-  await page.getByRole('radio', { name: '文件', exact: true }).check();
+  await page.getByRole('radio', { name: '上传文件', exact: true }).check();
   const fileTitle = `文件导入 ${Date.now()}`;
-  await page.getByLabel('标题', { exact: true }).fill(fileTitle);
+  await page.getByLabel('标题（选填）', { exact: true }).fill(fileTitle);
   await page.locator('input[type=file]').setInputFiles({
     name: '西安笔记.txt', mimeType: 'text/plain', buffer: Buffer.from(`西安城墙文件验收。${fileTitle}`),
   });
@@ -113,7 +113,7 @@ export async function checkTimeConstraints({ page, base, api, capture, checked }
   const reservation = page.getByRole('group', { name: '时间安排 3', exact: true });
   assert.equal(await reservation.getByLabel('结束时间', { exact: true }).inputValue(), '01:00');
   assert.equal(await reservation.getByLabel('结束日期', { exact: true }).inputValue(), '1');
-  await page.getByLabel('已知条件', { exact: true }).fill('住在钟楼附近');
+  await page.getByLabel('补充说明（选填）', { exact: true }).fill('住在钟楼附近');
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await page.getByRole('button', { name: '编辑要求', exact: true }).waitFor();
   assert.deepEqual((await api(`/api/trips/${id}`)).time_constraints, saved.time_constraints);

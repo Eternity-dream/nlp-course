@@ -15,3 +15,5 @@ node_modules/
 playwright-report/
 test-results/
 *:Zone.Identifier
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

@@ -7,7 +7,6 @@ import {
   ExternalLink,
   Plus,
   Edit2,
-  AlertTriangle,
 } from 'lucide-react';
 import type { ActivityCost, FactEvidence, Itinerary, Place, SearchSource, Trip } from '../types';
 import { Button } from './Button';
@@ -30,7 +29,6 @@ import {
   TRANSPORT_LABELS,
   COST_CATEGORY_LABELS,
   COST_BASIS_LABELS,
-  VALIDATION_STATUS_LABELS,
 } from '../utils';
 import './ItineraryView.css';
 
@@ -45,6 +43,7 @@ const FACT_KIND_LABELS: Record<FactEvidence['kind'], string> = {
   opening_hours: '营业时间',
   ticket_price: '门票',
   meal_price: '餐饮',
+  reservation: '预约',
 };
 
 const FACT_STATUS_LABELS: Record<FactEvidence['status'], string> = {
@@ -83,6 +82,7 @@ function costText(cost: ActivityCost, evidence: FactEvidence | undefined): strin
 }
 
 function factValue(fact: FactEvidence): string {
+  if (fact.kind === 'reservation') return fact.reservation_note || '预约规则待确认';
   if (fact.kind === 'opening_hours') {
     const parts: string[] = [];
     if (fact.closed) parts.push('当日闭馆');
@@ -148,6 +148,9 @@ function ActivityFacts({
                   <span className="fact-value">{factValue(fact)}</span>
                 </div>
                 {fact.quote && <blockquote className="fact-quote">{fact.quote}</blockquote>}
+                {fact.applicability?.quote && fact.applicability.quote !== fact.quote && (
+                  <blockquote className="fact-quote">{fact.applicability.quote}</blockquote>
+                )}
                 <div className="fact-meta">
                   {href ? (
                     <a
@@ -174,7 +177,6 @@ function ActivityFacts({
 }
 
 export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: ItineraryViewProps) {
-  const [expandedAssumptions, setExpandedAssumptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showAddEditor, setShowAddEditor] = useState<{ date: string } | null>(null);
@@ -194,7 +196,6 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
   const evidenceMap = new Map(itinerary.evidence.map((fact) => [fact.id, fact]));
   const sourcesMap = new Map(itinerary.sources.map((source) => [source.id, source]));
   const validation = itinerary.validation;
-  const hasIssues = validation.issues.length > 0;
 
   async function submit(operations: unknown[]) {
     // 提交前再核对一次，布局已更新或进入只读时不发出旧版本编辑。
@@ -269,17 +270,6 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
         <div className="itinerary-summary">
           <div className="itinerary-header">
             <h2 className="itinerary-title">行程草案</h2>
-            <Badge
-              variant={
-                validation.status === 'passed'
-                  ? 'success'
-                  : validation.status === 'blocked'
-                    ? 'danger'
-                    : 'warning'
-              }
-            >
-              {VALIDATION_STATUS_LABELS[validation.status]}
-            </Badge>
           </div>
 
           {error && (
@@ -288,76 +278,22 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
             </div>
           )}
 
-          <div className="itinerary-budget">
-            <div className="itinerary-budget-item">
-              <span className="itinerary-budget-label">已知费用</span>
-              <span className="itinerary-budget-value">
-                {formatCurrencyWhole(validation.known_cost_cents)}
-              </span>
+          <details className="itinerary-details">
+            <summary>费用与依据</summary>
+            <div className="itinerary-budget">
+              <span>已知费用 {formatCurrencyWhole(validation.known_cost_cents)}</span>
+              {validation.estimated_cost_cents > 0 && <span>估算费用 {formatCurrencyWhole(validation.estimated_cost_cents)}</span>}
+              {validation.unknown_cost_count > 0 && <span>待确认费用 {validation.unknown_cost_count}项</span>}
             </div>
-            {validation.estimated_cost_cents > 0 && (
-              <div className="itinerary-budget-item">
-                <span className="itinerary-budget-label">估算费用</span>
-                <span className="itinerary-budget-value">
-                  {formatCurrencyWhole(validation.estimated_cost_cents)}
-                </span>
-              </div>
-            )}
-            {validation.unknown_cost_count > 0 && (
-              <div className="itinerary-budget-item">
-                <span className="itinerary-budget-label">未知费用</span>
-                <span className="itinerary-budget-value">
-                  {validation.unknown_cost_count}项
-                </span>
-              </div>
-            )}
-          </div>
-
-          {itinerary.notices.length > 0 && (
-            <div className="itinerary-notices">
-              <div className="itinerary-notices-title">
-                <AlertTriangle size={14} />
-                提示
-              </div>
-              {itinerary.notices.map((notice, i) => (
-                <div key={i} className="itinerary-notice">
-                  {notice}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {hasIssues && (
-            <div className="validation-issues">
-              {validation.issues.map((issue, i) => (
-                <div key={i} className={`validation-issue ${issue.severity}`}>
-                  {issue.message}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {itinerary.assumptions.length > 0 && (
-            <div className="assumptions-section">
-              <button
-                type="button"
-                className="disclosure-toggle"
-                onClick={() => setExpandedAssumptions(!expandedAssumptions)}
-                aria-expanded={expandedAssumptions}
-              >
-                假设（{itinerary.assumptions.length}）
-              </button>
-              {expandedAssumptions && (
-                <ul className="assumption-list">
-                  {itinerary.assumptions.map((assumption, i) => (
-                    <li key={i} className="assumption">
-                      {assumption}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+            {validation.issues.length > 0 && <details>
+              <summary>核验详情</summary>
+              {validation.issues.map((issue, index) => <p key={index}>{issue.message}</p>)}
+            </details>}
+            {itinerary.assumptions.length > 0 && <details>
+              <summary>安排说明</summary>
+              {itinerary.assumptions.map((text, index) => <p key={index}>{text}</p>)}
+            </details>}
+          </details>
         </div>
       </Card>
 
@@ -408,6 +344,8 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
                         end_minute: activity.end_minute,
                         transport_mode: activity.transport_mode,
                         costs: activity.costs,
+                        description: activity.description,
+                        flexible_meal: activity.flexible_meal,
                       }}
                       onSuccess={handleReplaceActivity}
                       onCancel={() => setEditingActivity(null)}
@@ -421,19 +359,25 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
                     <div className="activity-card">
                       <div className="activity-header">
                         <div className="activity-main">
-                          <div className="activity-place">{place?.name || '未知地点'}</div>
+                          <div className="activity-place">{activity.kind === 'meal'
+                            ? (activity.start_minute < 600 ? '早餐' : activity.start_minute < 960 ? '午餐' : '晚餐')
+                            : place?.name || '未知地点'}</div>
                           <div className="activity-time">
                             <Badge variant="info" showDot={false}>
                               {PERIOD_LABELS[activity.period]}
                             </Badge>
                             <span>
-                              {formatMinute(activity.start_minute)}–{endText(activity.end_minute)}
+                              {activity.kind === 'meal' && '约 '}
+                              {formatMinute(activity.kind === 'meal'
+                                ? Math.floor(activity.start_minute / 30) * 30 : activity.start_minute)}–{endText(activity.kind === 'meal'
+                                ? Math.ceil(activity.end_minute / 30) * 30 : activity.end_minute)}
                             </span>
                             <Badge variant="default" showDot={false}>
                               {ACTIVITY_KIND_LABELS[activity.kind]}
                             </Badge>
                           </div>
-                          {place?.address && <div className="activity-address">{place.address}</div>}
+                          {activity.description && <p className="activity-description">{activity.description}</p>}
+                          {activity.kind !== 'meal' && place?.address && <div className="activity-address">{place.address}</div>}
                           {activity.costs.length > 0 && (
                             <div className="activity-costs">
                               {activity.costs.map((cost, i) => (
@@ -529,7 +473,15 @@ export function ItineraryView({ itinerary, trip, onUpdate, canEdit = true }: Iti
                           </div>
                         )}
                       </div>
-                      <ActivityFacts facts={facts} sources={sourcesMap} />
+                      {validation.issues.filter((issue) => issue.severity === 'conflict' &&
+                        issue.object_ids[0] === activity.id).slice(0, 1).map((issue, index) => (
+                        <div className="activity-warning" key={index}>
+                          {['closed', 'opening_hours', 'last_entry'].includes(issue.rule)
+                            ? '开放时间待调整' : ['travel_time', 'quality_geography'].includes(issue.rule)
+                              ? '接驳安排待调整' : '安排待调整'}
+                        </div>
+                      ))}
+                      <ActivityFacts facts={activity.kind === 'meal' && activity.flexible_meal ? [] : facts} sources={sourcesMap} />
                     </div>
                     {transport && (
                       <div className="transport-info">
