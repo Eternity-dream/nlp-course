@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from travel_planner.main import create_app
 from travel_planner.planner.models import ConstraintReview, ItineraryEdit, PlanDraft
+from travel_planner.providers.errors import ProviderError
 
 from .conftest import config, submit, wait_job
 
@@ -391,6 +392,39 @@ def test_changed_price_and_unknown_sources_update_budget_without_touching_other_
     assert_unchanged(result, unknown, [1, 2])
 
 
+@pytest.mark.parametrize("closed,expected_status", [(False, "needs_review"), (True, "blocked")])
+def test_edit_saves_validation_when_quality_review_times_out(
+    planned_client, original, services, monkeypatch, closed, expected_status
+):
+    trip, base = original
+    services.closed = closed
+
+    async def unavailable(*args, **kwargs):
+        raise ProviderError("llm", "timeout")
+
+    monkeypatch.setattr("travel_planner.planner.editor.review_itinerary", unavailable)
+    target = base["days"][0]["activities"][-1]
+    operation = {
+        "op": "replace",
+        "activity_id": target["id"],
+        "activity": activity_input(target, end_minute=1170),
+    }
+    job = edit(planned_client, trip, base, [operation])
+    assert job["status"] == "succeeded", job
+    result = current(planned_client, trip)
+    assert result["revision"] == 2
+    assert result["days"][0]["activities"][-1]["end_minute"] == 1170
+    assert result["planning_context"]["edit_review"] is None
+    validation = result["validation"]
+    assert validation["status"] == expected_status
+    issues = {(item["rule"], item["severity"]) for item in validation["issues"]}
+    assert ("quality_unavailable", "unknown") in issues
+    if closed:
+        assert ("closed", "conflict") in issues
+    else:
+        assert issues == {("quality_unavailable", "unknown")}
+
+
 @pytest.mark.parametrize("failure", ["model", "route", "save", "scope"])
 def test_failed_recheck_retains_original_and_can_retry(
     planned_client, original, services, monkeypatch, failure
@@ -402,7 +436,6 @@ def test_failed_recheck_retains_original_and_can_retry(
         if failure == "model":
             services.fail_model = True
         elif failure == "route":
-            from travel_planner.providers.errors import ProviderError
 
             async def fail_route(*args, **kwargs):
                 raise ProviderError("amap", "timeout")

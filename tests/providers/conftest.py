@@ -30,6 +30,7 @@ def configured(settings, **changes):
             "llm_api_key": "model-secret",
             "llm_model": "custom-model",
             "exa_api_key": "exa-secret",
+            "deepseek_api_key": "deepseek-secret",
             "tavily_api_key": "tavily-secret",
             "anysearch_api_key": "anysearch-secret",
             "amap_api_key": "amap-secret",

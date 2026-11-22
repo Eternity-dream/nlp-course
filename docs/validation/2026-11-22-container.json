@@ -1,0 +1,94 @@
+{
+  "started_at": "2026-11-22T08:42:51.614459+00:00",
+  "status": "passed",
+  "health": {
+    "status": "ok",
+    "schema_version": 6
+  },
+  "web_asset_sha256": {
+    "/assets/index-Cl9oj1tW.js": "cb9c1e7749ed57552ef0a1719a05c83f89b89991e7f5cf2890bfe5ed0b082676",
+    "/assets/index-DrVi5icc.css": "0a0a50aa4062f3708215c5adae31f04349c7d41d1f255e9f93aa3a3395d9d9e7"
+  },
+  "web_assets_verified": 2,
+  "search_modes": [
+    [
+      "exa",
+      "disabled"
+    ],
+    [
+      "deepseek",
+      "disabled"
+    ],
+    [
+      "tavily",
+      "disabled"
+    ],
+    [
+      "anysearch",
+      "disabled"
+    ]
+  ],
+  "image_environment": {
+    "uid": 10001,
+    "gid": 10001,
+    "env_file": false,
+    "source_tree": false,
+    "pytest": false,
+    "data_dir": "/data"
+  },
+  "container_replaced_data_preserved": true,
+  "verify": {
+    "schema_version": 6,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1
+  },
+  "backup": {
+    "schema_version": 6,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "archive": "/backup/snapshot.zip",
+    "archive_sha256": "4e171674c38ad50299fd68776e0fc7c3ba143d1548da53fe29cad80932eabf92"
+  },
+  "restore": {
+    "schema_version": 6,
+    "counts": {
+      "trips": 1,
+      "request_revisions": 1,
+      "knowledge_sources": 1,
+      "chunks": 1,
+      "jobs": 0,
+      "itinerary_revisions": 0,
+      "current_itineraries": 0
+    },
+    "idle": true,
+    "orphan_raw_files": 0,
+    "raw_files": 1,
+    "restored_from_schema": 6
+  },
+  "empty_volume_restore_verified": true,
+  "loopback_port_verified": true,
+  "image": "travel-planner-backend:phase4-20261122",
+  "checked_at_unix": 1795337005.9995348,
+  "elapsed_seconds": 35.81,
+  "finished_at": "2026-11-22T08:43:27.424616+00:00"
+}

@@ -1,12 +1,12 @@
 # 网页搜索服务比较
 
-核对日期：2026-11-14 至 2026-11-15。额度和价格来自各服务的官方定价页、计费说明与 API 文档，货币为美元。本文完成了文档核对；中国大陆网络可达性和西安中文来源覆盖尚需在实际安装环境验证。
+DeepSeek 价格核对日期为 2026-11-22，其余服务为 2026-11-14 至 2026-11-15。价格取自各服务的官方文档，美元用 $ 标示。
 
 ## 结论
 
-用户已选 Exa → Tavily → AnySearch 的顺序回退方案。Exa 有 Key 时使用 REST，无 Key 时尝试官方匿名托管 MCP；Tavily 需要 Key，AnySearch 可按配置使用 Key 或匿名 REST。TinyFish 与 Keenable 保留为调研资料。
+默认按 Exa → DeepSeek → Tavily → AnySearch 回退。Exa 有 Key 时使用 REST，无 Key 且允许匿名时使用官方托管 MCP。DeepSeek 和 Tavily 各自需要 Key，AnySearch 支持认证或匿名 REST。TinyFish 与 Keenable 保留为调研资料。
 
-首版实现前三家的 `search` 与正文获取适配，按顺序串行尝试，成功后停止。模型的 `base_url + api_key + model` 与搜索服务配置独立，具体触发条件和冷却规则见[接入方案](service-integration.md#回退规则)。
+搜索与正文获取均按配置顺序尝试，取得可用结果后停止。模型的 `base_url + api_key + model` 与搜索密钥独立。[回退与冷却规则](service-integration.md#回退规则)
 
 ## 免费与付费
 
@@ -14,6 +14,7 @@
 | --- | --- | --- | --- |
 | [Tavily](https://docs.tavily.com/documentation/api-credits) | 每月 1,000 credits，无需信用卡；每月 1 日重置。 | 按量 $0.008/credit；订阅从 $30/月、4,000 credits 起。Basic 搜索每次 1 credit，Advanced 每次 2。 | Basic 搜索约 $8/千次，Advanced $16/千次；额度也用于抽取等接口。开启 PAYG 后按用量计费，帮助页说明每累计 $40 用量扣款。 |
 | [Exa](https://exa.ai/pricing) | 首个 team 每月 $10 credits；完成 onboarding 另送一次性 $10，不需付款方式。 | 预付余额，无订阅和最低消费。每千次搜索 Lite $4、Auto $7、Deep $12，含前 10 条结果及相应文本/高亮；超出结果另计。 | 月免费余额每月 1 日重置且不累计，一次性 onboarding 赠额不失效。独立 Contents 为 $1/千页/内容类型。 |
+| DeepSeek | 需 API Key。 | Search 和 Fetch 各按每千次成功请求 5 元或 $0.75 计费。 | 计费要求 HTTP 200 且搜索结果非空或抓取返回正文。一次搜索返回多条结果仍计一次。[人民币定价](https://api-docs.deepseek.com/zh-cn/guides/search/) · [美元定价](https://api-docs.deepseek.com/guides/search/) |
 | [AnySearch](https://www.anysearch.com/pricing.md) | 每账户每日 1,000 calls，10 QPS；UTC 00:00，即北京时间 08:00 重置。 | Pro 一次性请求包，当前展示 $3/千 calls（页面原价 $5），可叠加、不失效，20 QPS。 | **先扣 Pro 付费额度，再用当日免费额度**。成功非空搜索或有效正文提取各算 1 call；批量搜索按成功子查询计。 |
 | [TinyFish](https://www.tinyfish.ai/pricing) | TinySearch 免费，官网列 30 次/分钟、500 次/小时；文档另列 12,000 次/日。TinyFetch 免费 1,000 URL/日，150 URL/分钟。新账号另有一次性 $8 钱包赠金。 | 钱包预付，最低充值 $10。TinyAgent $0.016/step，TinyBrowser $0.002/分钟；Search/Fetch 的超免费额度单价未明确。 | Search/Fetch 与 Agent/Browser 分开计量。官网与文档对 Search/Fetch 超额是否扣钱包有差异，详见下文。 |
 | [Keenable](https://keenable.ai/pricing) | 每组织每月 100,000 次请求，无需信用卡；按组织创建日重置。 | 预付 credits，普通按量 $4/千次；购买额度不失效，可选自动充值。 | **先用免费额度，再用购买余额**。Search 与 Fetch 目前各 1 credit/次；每次搜索返回 1–50 条仍算一次。 |
@@ -44,11 +45,14 @@
 | --- | --- | --- | --- | --- |
 | Tavily | `Authorization: Bearer <key>` | `POST https://api.tavily.com/search` | `POST https://api.tavily.com/extract` | `tavily-python`，有同步与异步客户端。 |
 | Exa | `x-api-key: <key>`，也支持 Bearer | `POST https://api.exa.ai/search` | `POST https://api.exa.ai/contents` | `exa-py`。 |
+| DeepSeek | `Authorization: Bearer <DEEPSEEK_API_KEY>` | `POST https://api.deepseek.com/v1/tools/search` | `POST https://api.deepseek.com/v1/tools/fetch` | 直接调用 REST。 |
 | AnySearch | `Authorization: Bearer <key>` | `POST https://api.anysearch.com/v1/search` | `POST https://api.anysearch.com/v1/extract` | 官方 REST 示例与 Python CLI；应用可直接调用 REST。 |
 | TinyFish | `X-API-Key: <key>` | `GET https://api.search.tinyfish.ai` | `POST https://api.fetch.tinyfish.ai` | `tinyfish` SDK。 |
 | Keenable | `X-API-Key: <key>`，也支持 Bearer | `POST https://api.keenable.ai/v1/search` | `GET https://api.keenable.ai/v1/fetch` | `keenable`，有异步客户端。 |
 
 接口依据：[Tavily Search](https://docs.tavily.com/documentation/api-reference/endpoint/search)、[Exa Contents](https://exa.ai/docs/reference/get-contents)、[AnySearch 协议](https://www.anysearch.com/docs/api-endpoints/v1-search.md)、[AnySearch 鉴权](https://www.anysearch.com/docs/auth.md)、[TinyFish Search](https://docs.tinyfish.ai/search-api/reference)、[TinyFish Fetch](https://docs.tinyfish.ai/fetch-api/reference)、[Keenable API](https://docs.keenable.ai/api-reference)、[Keenable key](https://docs.keenable.ai/api-keys)。
+
+DeepSeek 的搜索词限 1–128 个 Unicode 字符。适配器去除首尾空白，截取前 128 个字符并请求正文。Search 只有摘要时仍可保留来源，Fetch 返回空正文时由下一家继续抓取同一 URL。[官方接口说明](https://api-docs.deepseek.com/zh-cn/guides/search/)
 
 搜索结果统一为标题、URL、摘要、提供方及查询时间；正文统一为 URL、抓取时间、正文和可用的页面更新时间。模型根据这些证据生成行程，查询时间与页面发布时间分别保存。服务商摘要用于找到来源，营业时间、票价和预约规则继续核对原文。
 
@@ -56,4 +60,4 @@
 
 以陕西历史博物馆当前预约规则、兵马俑指定季节检票时间、大雁塔地点与同名条目、碑林开放公告、目的地切换为固定查询。评价来源命中、正文是否可读取、日期是否适用及来源关联完整性；在实际 Windows 安装网络测试搜索与正文接口的连通性。
 
-回退顺序已确定为 Exa → Tavily → AnySearch。无 Key Exa 的公开文档与默认限制已核对；2026-11-15 的直连探测被当前执行环境网络权限拦截，完整链路仍需实际安装环境验证。
+2026-11-15 的 Exa 直连探测受当时执行环境的网络权限限制。中国大陆网络可达性和西安中文来源覆盖仍需在实际安装环境验证。

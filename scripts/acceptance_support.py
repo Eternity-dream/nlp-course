@@ -50,9 +50,10 @@ class Server:
                 LLM_MODEL="",
                 AMAP_API_KEY="",
                 EXA_API_KEY="",
+                DEEPSEEK_API_KEY="",
                 TAVILY_API_KEY="",
                 ANYSEARCH_API_KEY="",
-                SEARCH_PROVIDERS="exa,tavily,anysearch",
+                SEARCH_PROVIDERS="exa,deepseek,tavily,anysearch",
                 SEARCH_ALLOW_ANONYMOUS="false",
             )
         with socket.socket() as probe:

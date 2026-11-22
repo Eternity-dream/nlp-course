@@ -69,6 +69,44 @@ def test_model_review_drives_new_query_and_rewrites_draft(planned_client, servic
     assert done["progress_estimate"] == 100
 
 
+def test_same_place_legs_leave_tool_budget_for_distinct_places(
+    planned_client, services, monkeypatch
+):
+    # 三次地点查询、三次事实查询，剩余一次调用可用于跨地点路线。
+    monkeypatch.setattr("travel_planner.planner.workflow.MAX_TOOL_CALLS", 7)
+
+    def anchor_meal(context, result):
+        if context["operation"] == "draft":
+            for day in result["days"]:
+                first, meal, last = day["activities"]
+                meal.update(
+                    place_id=first["place_id"],
+                    flexible_meal=True,
+                    costs=[{"category": "meal", "amount_cents": None}],
+                    transport_mode="transit",
+                )
+                last["transport_mode"] = "driving"
+        return result
+
+    services.transform_result = anchor_meal
+    trip, job = submit(planned_client)
+    done = wait_job(planned_client, job["id"])
+    assert done["status"] == "succeeded", done
+    result = planned_client.get(f"/api/trips/{trip['id']}/itinerary").json()
+    assert result["planning_context"]["tool_calls"] == 7
+    assert [r.url.path for r in services.requests if "/direction/" in r.url.path] == [
+        "/v5/direction/driving"
+    ]
+    for leg in result["transport"]:
+        route = leg["route"]
+        if route["origin_place_id"] == route["destination_place_id"]:
+            assert route["mode"] == "walking"
+            assert route["distance_meters"] == route["duration_seconds"] == route["fare_cents"] == 0
+        else:
+            assert route["mode"] == "driving"
+            assert route["duration_seconds"] == 600
+
+
 def test_loop_limit_preserves_reviewed_draft(planned_client, services, monkeypatch):
     monkeypatch.setattr("travel_planner.planner.workflow.MAX_STEPS", 4)
     trip, job = submit(planned_client)

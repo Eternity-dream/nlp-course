@@ -6,6 +6,12 @@
       {"title": "错误协议", "url": "file:///etc/passwd"}
     ]
   },
+  "deepseek": {
+    "results": [
+      {"title": "博物馆参观公告", "url": "https://example.com/museum", "snippet": "开放时间公告", "summary": "馆方公布了参观时段。", "content": "博物馆每周二至周日开放。", "date": "2026-11-01T08:00:00Z"},
+      {"title": "博物馆预约说明", "url": "https://example.com/booking", "snippet": "", "summary": "预约需提前办理。", "content": "", "date": null}
+    ]
+  },
   "tavily": {
     "results": [{"title": "西湖指南", "url": "https://example.com/xihu", "content": "搜索摘要", "raw_content": "网页正文：西湖步行路线。"}]
   },

@@ -49,11 +49,13 @@ def normalize_sources(provider: str, rows: list) -> list[SearchSource]:
                 provider=provider,
                 title=text_value(row.get("title"), 1000) or url,
                 url=url,
-                snippet=text_value(row.get("snippet"), 3000),
+                snippet=text_value(row.get("snippet") or row.get("summary"), 3000),
                 text=text,
                 queried_at=timestamp,
                 fetched_at=timestamp if text else None,
-                published_at=text_value(row.get("publishedDate") or row.get("published_at"), 100),
+                published_at=text_value(
+                    row.get("publishedDate") or row.get("published_at") or row.get("date"), 100
+                ),
             )
         )
     return result
@@ -65,6 +67,7 @@ class RestSearch:
         self.auth_mode = "key" if key else "anonymous"
         self.base_url = {
             "exa": "https://api.exa.ai",
+            "deepseek": "https://api.deepseek.com/v1/tools",
             "tavily": "https://api.tavily.com",
             "anysearch": "https://api.anysearch.com/v1",
         }[name]
@@ -96,6 +99,8 @@ class RestSearch:
                 "type": "auto",
                 "contents": {"text": {"maxCharacters": 12000}},
             }
+        elif self.name == "deepseek":
+            payload = {"query": query.strip()[:128], "count": limit, "need_content": True}
         else:
             payload = {"query": query, "max_results": limit}
             if self.name == "tavily":
@@ -120,12 +125,19 @@ class RestSearch:
     async def fetch(self, url: str) -> list[SearchSource]:
         payload = {"ids": [url], "text": {"maxCharacters": 50000}, "maxAgeHours": 0}
         endpoint = "/contents"
-        if self.name == "tavily":
+        if self.name == "deepseek":
+            endpoint, payload = "/fetch", {"url": url}
+        elif self.name == "tavily":
             endpoint, payload = "/extract", {"urls": [url], "extract_depth": "basic"}
         elif self.name == "anysearch":
             endpoint, payload = "/extract", {"url": url}
         data = await self._post(endpoint, payload)
-        rows = [data] if self.name == "anysearch" else data.get("results")
+        if self.name == "deepseek":
+            rows = [{"url": url, "title": data.get("title"), "content": data.get("content")}]
+        elif self.name == "anysearch":
+            rows = [data]
+        else:
+            rows = data.get("results")
         if not isinstance(rows, list):
             raise ProviderError(self.name, "invalid_response")
         return [

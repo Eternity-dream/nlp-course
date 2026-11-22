@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from travel_planner.planner.agent_models import QualityReview
 from travel_planner.planner.models import ValidationIssue
+from travel_planner.planner.prompts import TRANSFERS, TRANSPORT_MODE
 
 
 async def review_itinerary(
@@ -45,6 +46,7 @@ async def review_itinerary(
     instruction = (
         "独立审核完整旅行安排，不因为生成器已经给出草案就认可它。"
         "检查跨日重复景点、同一景区别名与入口造成的重复体验、每天差异和绕路。"
+        f"{TRANSPORT_MODE}{TRANSFERS}"
         "flexible_meal=true表示区域自由用餐，place_id仅为交通锚点，不是指定店家，"
         "不能因锚点是景点就判餐饮错误，不能套用锚点营业时间核验饭点。"
         "检查用餐时段是否合理、餐费是否标为估算。其他meal检查是否为真实餐馆或餐饮区域。"
@@ -79,9 +81,15 @@ async def review_itinerary(
     )
 
 
-def apply_review(validation, review):
-    for finding in review.findings:
+def apply_review(validation, review: QualityReview | None):
+    if review is None:
         validation.issues.append(
+            ValidationIssue(
+                rule="quality_unavailable", severity="unknown", message="行程合理性审核暂未完成"
+            )
+        )
+    else:
+        validation.issues.extend(
             ValidationIssue(
                 rule="quality_" + finding.category,
                 severity=finding.severity,
@@ -89,6 +97,7 @@ def apply_review(validation, review):
                 evidence_ids=finding.evidence_ids,
                 message=finding.message,
             )
+            for finding in review.findings
         )
     if any(issue.severity == "conflict" for issue in validation.issues):
         validation.status = "blocked"

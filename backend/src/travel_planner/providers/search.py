@@ -106,8 +106,6 @@ class SearchScope:
                     if provider is None:
                         raise ProviderError(name, "not_configured")
                     rows = await getattr(provider, operation)(*args)
-                    if not rows:
-                        raise ProviderError(name, "empty_results")
                     if source:
                         # 保持应用已有来源 ID，正文提供方记录实际成功的服务。
                         rows = [
@@ -119,6 +117,8 @@ class SearchScope:
                         ]
                         if not rows:
                             raise ProviderError(name, "source_unavailable")
+                    elif not rows:
+                        raise ProviderError(name, "empty_results")
                     record.outcome = "succeeded"
                     attempts.append(record)
                     return self._remember(cache_key, rows, attempts)

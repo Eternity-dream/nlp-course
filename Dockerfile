@@ -17,7 +17,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 COPY backend/src/ backend/src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable
+    uv build --wheel --out-dir /tmp/wheels \
+    && uv pip install --no-deps /tmp/wheels/*.whl
 
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \

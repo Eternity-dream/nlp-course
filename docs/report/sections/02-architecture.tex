@@ -1,0 +1,93 @@
+\section{系统总体架构与数据契约}
+
+\subsection{分层架构与单容器拓扑}
+
+为了在保证功能完整性的同时将安装与维护门槛降到最低，系统采用“\textbf{构建期编译前端、运行期单进程整合}”的紧凑架构。如图~\ref{fig:system-arch} 所示，后端由 FastAPI 与 Uvicorn 单进程承载，既负责 \texttt{/api/*} REST 接口与后台串行任务执行器，也直接托管 Vite 编译产出的静态网页资源。宿主机仅暴露回环端口 \texttt{127.0.0.1:8000}，所有可变状态集中在单个持久化目录（容器内固定为 \texttt{/data}），配置与外部服务密钥独立存放在 \texttt{.env} 中，不进入镜像构建层。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw=BrandBlue!80, fill=BrandSoft, rounded corners=3pt, minimum width=4.6cm, minimum height=0.95cm, align=center, font=\sffamily\small},
+    subbox/.style={draw=BorderLight, fill=white, rounded corners=2pt, minimum width=3.8cm, minimum height=0.95cm, align=center, font=\sffamily\footnotesize},
+    extbox/.style={draw=AccentGreen!75, fill=AccentGreen!6, rounded corners=3pt, minimum width=4.4cm, minimum height=1.0cm, align=center, font=\sffamily\footnotesize},
+    storebox/.style={draw=AccentAmber!80, fill=AccentAmber!8, rounded corners=3pt, minimum width=3.9cm, minimum height=1.0cm, align=center, font=\sffamily\footnotesize},
+    arrow/.style={-{Stealth[length=2.2mm]}, thick, color=InkMuted}
+  ]
+    % 顶层：浏览器前端
+    \node[box] (ui) at (0, 2.75) {React 18 + TypeScript 响应式网页\\{\scriptsize 行程 · 资料 · 偏好 · 服务状态}};
+
+    % 中层：单应用容器内三大子系统
+    \node[subbox] (api) at (-4.4, 0.35) {FastAPI 路由层\\{\scriptsize 脱敏配置 / 乐观锁 / 幂等}};
+    \node[subbox] (planner) at (0, 0.35) {动态规划与编辑引擎\\{\scriptsize 动作循环 / 规则 / 审核}};
+    \node[subbox] (know) at (4.4, 0.35) {本地知识库服务\\{\scriptsize 解析 / jieba / FTS5}};
+
+    \begin{pgfonlayer}{background}
+      \node[draw=BrandBlue!55, dashed, fill=PanelBg, rounded corners=4pt, inner sep=11pt,
+        fit=(api)(planner)(know)] (app) {};
+      \node[anchor=south west, font=\sffamily\scriptsize\bfseries, color=BrandBlue]
+        at ([yshift=2pt]app.north west) {单应用容器（Python 3.13 + Uvicorn，UID 10001）};
+    \end{pgfonlayer}
+
+    % 底层：持久化与外部服务（三列严格不重叠）
+    \node[storebox] (sqlite) at (-4.5, -2.05) {SQLite (WAL, Schema v6)\\{\scriptsize 行程 / 版本 / 任务 / 检查点 / FTS5}};
+    \node[storebox] (files) at (0.0, -2.05) {本地原始资料目录\\{\scriptsize PDF / 文本 / 网页快照 + SHA-256}};
+    \node[extbox] (ext) at (4.55, -2.05) {外部服务适配层\\{\scriptsize OpenAI 兼容模型 · 高德地图}\\{\scriptsize Exa / DeepSeek / Tavily / AnySearch}};
+
+    % 连线清晰无交叉
+    \draw[arrow] (ui.south) -- node[right, font=\sffamily\scriptsize, color=InkMuted]{HTTP / JSON（仅 127.0.0.1）} (0, 1.48) -| (api.north);
+    \draw[arrow] (api.east) -- (planner.west);
+    \draw[arrow] (planner.east) -- (know.west);
+    \draw[arrow] (api.south) -- (sqlite.north);
+    \draw[arrow] (planner.south) -- ++(0,-0.45) -| ([xshift=0.9cm]sqlite.north);
+    \draw[arrow] (know.south) -- ++(0,-0.45) -| (files.north);
+    \draw[arrow] (planner.south) -- ++(0,-0.65) -| ([xshift=-0.8cm]ext.north);
+  \end{tikzpicture}
+  \caption{系统总体分层架构与数据边界}
+  \label{fig:system-arch}
+\end{figure}
+
+后端源码按职责清晰划分为六个内聚子包：\texttt{api}（HTTP 路由与错误中间件）、\texttt{domain}（领域模型、输入边界与统一错误码）、\texttt{planner}（动作循环、事实取证、规则校验、独立审核、局部编辑与串行执行器）、\texttt{knowledge}（多类型文档解析、公网 SSRF 防护与中文全文索引）、\texttt{providers}（模型、高德地图及四家搜索/抓取适配），以及 \texttt{storage} 与 \texttt{maintenance}（SQLite 迁移、实例独占锁与离线备份恢复）。
+
+\subsection{核心技术选型与架构决策}
+
+每一项技术选型都服务于“低维护成本、高可验证性、零隐藏黑盒”的工程目标：
+
+\begin{table}[H]
+  \centering
+  \caption{关键技术选型与取舍依据}
+  \renewcommand{\arraystretch}{1.28}
+  \begin{tabularx}{\textwidth}{@{} >{\sffamily\bfseries}p{2.6cm} >{\sffamily}p{3.4cm} Y @{}}
+    \toprule
+    层级 & 选定方案 & 选型依据与简化价值 \\
+    \midrule
+    前端界面 & React 18 + TypeScript + Vite & 生态成熟、强类型契约与静态产物轻量；无多余全局状态框架，组件结构直接映射页面视图。 \\
+    后端服务 & FastAPI + Pydantic v2 + \texttt{uv} & 原生异步支持外部 HTTP 并发/超时控制，Pydantic 严格校验 LLM 结构化输出，\texttt{uv.lock} 锁定可复现依赖。 \\
+    持久化与检索 & SQLite (WAL) + FTS5 + \texttt{jieba} & 单文件事务一致、免独立数据库运维；本机中文分词建立倒排索引，避免额外维护向量服务与嵌入模型（ADR-0003）。 \\
+    任务与并发 & 进程内串行执行器 + SQLite 状态机 & 一次执行一个规划任务、其余排队；浏览器关闭后继续运行，进程中断重启自动将未完任务标记 \texttt{interrupted} 并允许从检查点重试。 \\
+    打包交付 & 多阶段 Dockerfile + Docker Compose & Node.js 24 阶段构建网页、Python 3.13 运行态剔除源码与测试依赖，以非 root 用户运行并配置原生健康检查。 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{SQLite Schema v6 演进与事务保障}
+
+系统以显式事务迁移管理数据库结构，版本号已从初始 v1 平滑演进至 \textbf{v6}：
+
+\begin{itemize}
+  \item \textbf{v1--v3}：建立行程要求与修订历史、偏好档案、知识资料与 FTS5 分段索引、规划任务及事件流、行程修订版本及编辑操作审计。
+  \item \textbf{v4}：增加服务连通性检查持久化记录与运行态清理队列，确保显式检查结果脱敏落盘。
+  \item \textbf{v5}：引入 \texttt{planning\_checkpoints} 表，在动态 Agent 的每个工具动作与审核节点后落盘工作状态，实现断点续跑与重试复用公开查询。
+  \item \textbf{v6}：扩展偏好表增加自然语言原文字段（平滑迁移既有键值偏好为逐行文本），并持久化行程与参考资料的显式关联关系。
+\end{itemize}
+
+在数据契约层面，系统坚持四项不变量：\textbf{金额一律以人民币整数“分”存储}避免浮点误差；\textbf{时间内部以当天零点起的分钟数表达}（跨午夜结束时间加 1440）并统一按 \texttt{Asia/Shanghai} 核验营业区间；\textbf{写入采用乐观锁与幂等键}（旧 \texttt{expected\_revision} 返回 \texttt{409}，避免刷新重发产生重复任务或覆盖编辑）；\textbf{所有新草案以单事务切换当前版本}，历史版本永久只读留档。
+
+\subsection{实例锁与离线数据维护（\texttt{travel-data}）}
+
+针对个人设备长期运行中的数据安全，应用在数据目录维护进程级独占锁（\texttt{.instance.lock}），防止同一数据卷被两个服务或维护进程同时写入。停服后，用户可通过内置 CLI \texttt{travel-data} 执行三类离线运维：
+
+\begin{enumerate}
+  \item \textbf{\texttt{verify}}：核验 SQLite 完整性、外键约束、FTS5 与正文片段一一对应、原文件 SHA-256 摘要、孤立文件计数以及行程/任务版本引用。
+  \item \textbf{\texttt{backup}}：合并 WAL 已提交数据生成单文件快照，连同全部原资料和含逐文件摘要的清单打包为 ZIP 归档（内置 8 GiB 与 10,000 文件展开上限保护）。
+  \item \textbf{\texttt{restore}}：仅接受空目录或空数据卷；先在暂存区校验压缩包签名、防路径穿越与符号链接攻击、对旧版本执行事务迁移，确认无误后原子发布；若恢复中途异常留下 \texttt{.restore-in-progress} 标记，应用启动时自动拒绝加载，保护现场不静默损坏。
+\end{enumerate}

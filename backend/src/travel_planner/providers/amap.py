@@ -45,6 +45,19 @@ def money_cents(value) -> int | None:
     return None
 
 
+def same_place_route(place_id: str) -> Route:
+    return Route(
+        origin_place_id=place_id,
+        destination_place_id=place_id,
+        mode="walking",
+        duration_seconds=0,
+        distance_meters=0,
+        fare_cents=0,
+        status="estimated",
+        queried_at=datetime.now(UTC),
+    )
+
+
 class Amap:
     def __init__(self, key: str, http: ProviderHTTP, *, clock=time.monotonic, sleep=asyncio.sleep):
         self.key, self.http = key, http
@@ -204,15 +217,7 @@ class Amap:
             return unknown
         if origin.id == destination.id:
             # 同一锚点的自由用餐/分段参观没有点间位移，不请求绕行路线。
-            return unknown.model_copy(
-                update={
-                    "mode": "walking",
-                    "duration_seconds": 0,
-                    "distance_meters": 0,
-                    "fare_cents": 0,
-                    "status": "estimated",
-                }
-            )
+            return same_place_route(origin.id)
         params = {
             "origin": f"{origin.longitude:.6f},{origin.latitude:.6f}",
             "destination": f"{destination.longitude:.6f},{destination.latitude:.6f}",

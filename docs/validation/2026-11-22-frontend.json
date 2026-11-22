@@ -1,0 +1,150 @@
+{
+  "status": "passed",
+  "started_at": "2026-11-22T08:42:57.350Z",
+  "finished_at": "2026-11-22T08:43:36.997Z",
+  "checks": [
+    "并发偏好旧版本返回409、显示冲突并重新载入新原文",
+    "偏好保存与清空",
+    "文本导入、后台解析和原文下载",
+    "资料详情、段落定位、原文下载、搜索命中与空结果",
+    "文件导入、详情删除与检索清理",
+    "资料列表加载更多",
+    "参考资料页收藏链接导入并提取正文",
+    "资料解析失败显示原因，重新导入提交至后端并复核最终状态",
+    "非法日历日期、倒序、2/8天被拒；7天及留空预算刷新读回",
+    "表单上传文件、解析就绪与取消关联",
+    "表单链接导入失败后保留地址、标题与行程输入，再提交成功",
+    "表单内导入参考、自动标题、保留输入与移除关联",
+    "活动与日期对应的事实、引用、来源和键盘展开",
+    "新建、金额精度、生成任务、轮询和刷新恢复",
+    "删除活动、局部重排和新版本保存",
+    "地点查询、键盘选择、添加活动和零费用",
+    "活动时间修改、费用依据保留、稳定标识与局部保存",
+    "地点替换与费用更新",
+    "同日排序、指定跨日移动和第三天保持",
+    "历史草案查询、只读和返回最新版",
+    "补充条件保留输入、原任务继续",
+    "预计进度与完成后行程优先展示",
+    "四家搜索名称、顺序、密钥与匿名模式、禁用状态及响应脱敏",
+    "显式服务检查",
+    "抵达、离开、跨午夜预约、重开保留、删除和零预算",
+    "390px、320px页面布局和路由直达",
+    "缺配置状态与用户文案",
+    "服务错误提示与重试入口"
+  ],
+  "layoutIssues": [],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "check_count": 28,
+  "elapsed_seconds": 39.647,
+  "viewports_css_px": [
+    1440,
+    390,
+    320
+  ],
+  "accessibility": {
+    "engine": "axe-core",
+    "tags": [
+      "wcag2a",
+      "wcag2aa",
+      "wcag21a",
+      "wcag21aa",
+      "wcag22a",
+      "wcag22aa"
+    ],
+    "states": [
+      "desktop-home",
+      "desktop-settings",
+      "desktop-preferences",
+      "desktop-knowledge",
+      "desktop-knowledge-detail",
+      "mobile-320-knowledge-detail",
+      "desktop-knowledge-search",
+      "desktop-file-import",
+      "desktop-reference-dialog",
+      "desktop-trip-form",
+      "desktop-itinerary",
+      "desktop-add-activity",
+      "desktop-history",
+      "desktop-clarification",
+      "mobile-320-clarification",
+      "desktop-estimated-progress",
+      "desktop-itinerary-list",
+      "desktop-services",
+      "desktop-time-constraints",
+      "mobile-320-time-constraints",
+      "mobile-390-home",
+      "mobile-390-settings",
+      "mobile-390-knowledge",
+      "mobile-390-preferences",
+      "mobile-390-services",
+      "mobile-390-itinerary",
+      "mobile-390-trip-form",
+      "mobile-390-reference-dialog",
+      "mobile-320-home",
+      "mobile-320-settings",
+      "mobile-320-knowledge",
+      "mobile-320-preferences",
+      "mobile-320-services",
+      "mobile-320-itinerary",
+      "mobile-320-trip-form",
+      "mobile-320-reference-dialog",
+      "missing-config",
+      "service-error"
+    ],
+    "violation_count": 0
+  },
+  "expected_http_error_count": 8,
+  "images": [
+    {
+      "file": "01-trips-home.png",
+      "width": 2880,
+      "height": 1920,
+      "bytes": 59056
+    },
+    {
+      "file": "02-trip-form-references.png",
+      "width": 2880,
+      "height": 1920,
+      "bytes": 152610
+    },
+    {
+      "file": "03-itinerary-xian-5days.png",
+      "width": 2880,
+      "height": 4902,
+      "bytes": 594814
+    },
+    {
+      "file": "04-itinerary-evidence-versions.png",
+      "width": 2880,
+      "height": 3132,
+      "bytes": 317632
+    },
+    {
+      "file": "05-knowledge-search.png",
+      "width": 2880,
+      "height": 2234,
+      "bytes": 271006
+    },
+    {
+      "file": "06-preferences.png",
+      "width": 2880,
+      "height": 1920,
+      "bytes": 92312
+    },
+    {
+      "file": "07-status-providers.png",
+      "width": 2880,
+      "height": 3334,
+      "bytes": 181727
+    },
+    {
+      "file": "08-mobile-itinerary.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 144352
+    }
+  ],
+  "screenshot_source": "规划备份的独立副本，版本 2 与历史版本 1，含三份新增公开样例笔记与旅行习惯。",
+  "evidence_image": "第 04 张纵向拼接两个版本的原始截图区域：版本 2 的核验明细、版本 1 的只读选择栏与展开的事实来源。"
+}

@@ -1,6 +1,7 @@
 """验收已构建后端镜像的 Compose 启动、容器替换和空卷恢复。"""
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -36,9 +37,10 @@ class Containers:
                             "LLM_MODEL": "",
                             "AMAP_API_KEY": "",
                             "EXA_API_KEY": "",
+                            "DEEPSEEK_API_KEY": "",
                             "TAVILY_API_KEY": "",
                             "ANYSEARCH_API_KEY": "",
-                            "SEARCH_PROVIDERS": "exa,tavily,anysearch",
+                            "SEARCH_PROVIDERS": "exa,deepseek,tavily,anysearch",
                             "SEARCH_ALLOW_ANONYMOUS": "false",
                         }
                     }
@@ -143,6 +145,10 @@ def scenario(args, report):
                 return response.json()
 
             report["health"] = get("/api/health")
+            require(
+                report["health"] == {"status": "ok", "schema_version": 6},
+                "容器健康或数据库版本错误",
+            )
             homepage = client.get("/")
             require(
                 homepage.status_code == 200
@@ -152,11 +158,24 @@ def scenario(args, report):
             )
             assets = re.findall(r'(?:src|href)="(/assets/[^" ]+)"', homepage.text)
             require(bool(assets), "网页缺少构建资源")
+            report["web_asset_sha256"] = {}
             for asset in assets:
                 response = client.get(asset)
-                require(response.status_code == 200 and response.content, "网页构建资源不可读")
+                expected = (PROJECT / "web/dist" / asset.lstrip("/")).read_bytes()
+                require(
+                    response.status_code == 200 and response.content == expected,
+                    "容器静态资源与本地构建不一致",
+                )
+                report["web_asset_sha256"][asset] = hashlib.sha256(expected).hexdigest()
             report["web_assets_verified"] = len(assets)
-            require(not get("/api/config/status")["ready_for_planning"], "缺 Key 状态未保留")
+            config = get("/api/config/status")
+            require(not config["ready_for_planning"], "缺 Key 状态未保留")
+            report["search_modes"] = [(p["provider"], p["auth_mode"]) for p in config["search"]]
+            require(
+                report["search_modes"]
+                == [(name, "disabled") for name in ("exa", "deepseek", "tavily", "anysearch")],
+                "缺配置实例的搜索模式不符",
+            )
             ports = json.loads(
                 containers.command(
                     "inspect", "--format", "{{json .HostConfig.PortBindings}}", original_container
@@ -237,6 +256,7 @@ def scenario(args, report):
             report["restore"] = containers.maintenance(
                 "restore", "--archive", "/backup/snapshot.zip"
             )
+            require(containers.maintenance("verify") == report["verify"], "恢复前后校验结果不同")
             containers.compose(
                 "run",
                 "--rm",

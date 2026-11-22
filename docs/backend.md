@@ -231,14 +231,14 @@ uv 使用 `.python-version` 指定的 Python 3.13。浏览器访问 `http://127.
 | `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` | 标准 Chat Completions，保留基址已有路径后追加 `/chat/completions`。 |
 | `LLM_JSON_MODE` | 默认 `false`，通过提示词与 Pydantic 校验 JSON；设为 `true` 后发送通用 `response_format`，服务明确拒绝此选项时去掉并重发。 |
 | `PROVIDER_TIMEOUT_SECONDS` | 默认 30 秒，限制每次外部 HTTP 请求及一次 MCP 会话的总等待时间。 |
-| `SEARCH_PROVIDERS` | 默认 `exa,tavily,anysearch`，按配置顺序回退，成功后停止。 |
-| `SEARCH_ALLOW_ANONYMOUS` | 默认 `true`，无 Exa Key 时走官方 MCP，无 AnySearch Key 时走匿名 REST；Tavily 需要 Key。 |
-| `EXA_API_KEY`、`TAVILY_API_KEY`、`ANYSEARCH_API_KEY` | 各自独立；启动时固定模式，带 Key 失败后转下一家。 |
+| `SEARCH_PROVIDERS` | 默认 `exa,deepseek,tavily,anysearch`，按配置顺序回退，成功后停止。 |
+| `SEARCH_ALLOW_ANONYMOUS` | 默认 `true`，无 Exa Key 时走官方 MCP，无 AnySearch Key 时走匿名 REST；DeepSeek 和 Tavily 各自需要 Key。 |
+| `EXA_API_KEY`、`DEEPSEEK_API_KEY`、`TAVILY_API_KEY`、`ANYSEARCH_API_KEY` | 各自独立；启动时固定模式，带 Key 失败后转下一家。 |
 | `AMAP_API_KEY` | 地点搜索和步行、公交、驾车路线的服务端凭据。 |
 
 `providers/llm.py` 接受 Pydantic 输出模型及校验上下文；空输出、截断、JSON 或业务字段校验失败时最多追加两次生成，失败返回具体错误。可选 JSON 模式的协议兼容重发独立于输出修复计数。来源 ID 是否存在等业务规则由调用方的输出模型校验。
 
-`providers/search.py` 的 `SearchEngine.scope()` 为每个任务建立独立查询缓存和失败状态。目的地传入公开查询；同一任务复用等价查询和已取得正文。正文缺失时先复用本地公网下载与隔离提取，再按三家顺序抓取。来源保留实际提供方、稳定 ID、查询时间、正文取得时间和可用的发布时间，初始状态为 `unverified`；具体事实与适用日期由后续取证流程关联。
+`providers/search.py` 的 `SearchEngine.scope()` 为每个任务建立独立查询缓存和失败状态。目的地传入公开查询；同一任务复用等价查询和已取得正文。正文缺失时先复用本地公网下载与隔离提取，再按配置顺序抓取。来源保留实际提供方、稳定 ID、查询时间、正文取得时间和可用的发布时间，初始状态为 `unverified`；具体事实与适用日期由后续取证流程关联。
 
 429 的冷却状态按提供方和鉴权模式共享到其他任务，优先使用 `Retry-After` 或重置头；没有可用重置时间时跳过当前任务剩余调用，下一个任务可再尝试。鉴权和额度失败仅在当前任务禁用该服务。400／422 参数错误停止回退；AnySearch 的 `422 extract_failed` 与单个网页正文失败仅影响该 URL。HTTPX 常规请求日志只保留方法和状态，避免高德查询参数中的 Key 出现在日志。
 
@@ -265,7 +265,7 @@ uv run ruff format --check .
 - URL 协议、私网／混合 DNS 结果、重定向和下载大小检查，以及固定 HTML 的正文提取。
 - 迁移失败回滚、未来数据库版本拒绝、进程互斥、重启恢复、安装隔离和停服目录复制恢复。
 - 兼容模型基址和模型切换、JSON 模式兼容、输出有限修复、校验上下文中的来源 ID 检查。
-- 三家搜索／正文字段映射、匿名与 Key 模式、成功停止、错误分类、共享限流、任务内缓存及全部失败保留已有来源。
+- 四家搜索／正文字段映射、匿名与 Key 模式、成功停止、错误分类、共享限流、任务内缓存及全部失败保留已有来源。
 - 通过真实 MCP SDK 验证初始化、工具发现、Schema 校验、JSON／SSE 响应与 HTTP 200 中的 JSON-RPC／工具错误。
 - 高德目的地传递、同名门店消歧、三种交通模式、未知字段与估算标记、错误和日志脱敏。
 - 显式连通性检查、记录持久化、配置读取不调用供应商，以及旧数据库升级后保留数据。
@@ -290,7 +290,7 @@ uv run ruff format --check .
 
 从当前 Linux 执行环境使用无 Key Exa 官方 MCP 完成初始化、工具发现和“西安 碑林博物馆 官方 开放时间”搜索，返回 3 个有效来源，回退链在 Exa 停止。随后使用实际发现的 `web_fetch_exa` 工具与 `urls` 参数取得 `https://beilin-museum.com/` 正文，保存工具 Schema、调用参数、时间和公开响应为 `tests/fixtures/providers/exa_mcp_live.json`，并以该录制响应回归正文解析。
 
-实际 DeepSeek `deepseek-flash`、高德与 Exa 已完成公开西安三天样例的规划、单日编辑、重启和备份恢复。原草案包含 13 项活动、24 个来源与 10 段估算路线，24 条提取事实均未达到已核实条件；结果为 `needs_review`，营业时间、票价和预算继续核对。编辑核验遗漏已有预约说明造成的误报已修复并通过真实模型复测，具体结果见[验收记录](validation/2026-11-15-backend.md)。Exa 带 Key REST、Tavily、AnySearch 带 Key 和完整三家在线回退仍需相应配置验收。
+实际 DeepSeek `deepseek-flash`、高德与 Exa 已完成公开西安三天样例的规划、单日编辑、重启和备份恢复。原草案包含 13 项活动、24 个来源与 10 段估算路线，24 条提取事实均未达到已核实条件；结果为 `needs_review`，营业时间、票价和预算继续核对。编辑核验遗漏已有预约说明造成的误报已修复并通过真实模型复测，具体结果见[验收记录](validation/2026-11-15-backend.md)。Exa 带 Key REST、DeepSeek 搜索、Tavily、AnySearch 带 Key 和完整四家在线回退仍需相应配置验收。
 
 ## 可重复执行的独立验收
 

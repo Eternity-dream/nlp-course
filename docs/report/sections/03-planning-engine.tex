@@ -1,0 +1,69 @@
+\section{动态规划引擎与局部编辑机制}
+
+\subsection{从固定流水线到 LLM 动作循环}
+
+首版原型最初采用“条件整理 $\rightarrow$ 检索 $\rightarrow$ 取证 $\rightarrow$ 生成 $\rightarrow$ 核验”的静态串联流程。在实际多日旅行规划中，静态流程很容易在候选地点不足、同名入口重复、某天行程过松或过紧时束手无策。为此，系统升级为\textbf{受控的动态动作循环（Dynamic Planning Loop）}：模型不再一次性盲写整份行程，而是根据当前意图、已取得地点、事实依据、草案和独立审核反馈，逐轮自主选择下一步工具动作，同时由应用代码严格管控安全边界与调用上限。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=0.95cm and 1.25cm,
+    pstep/.style={draw=BrandBlue!80, fill=BrandSoft, rounded corners=3pt, minimum width=2.45cm, minimum height=0.85cm, align=center, font=\sffamily\footnotesize},
+    gate/.style={draw=AccentAmber!85, fill=AccentAmber!10, rounded corners=3pt, minimum width=2.55cm, minimum height=0.85cm, align=center, font=\sffamily\footnotesize},
+    done/.style={draw=AccentGreen!85, fill=AccentGreen!10, rounded corners=3pt, minimum width=2.45cm, minimum height=0.85cm, align=center, font=\sffamily\footnotesize},
+    arrow/.style={-{Stealth[length=2mm]}, thick, color=InkMuted}
+  ]
+    \node[pstep] (decide) {动作决策\\{\scriptsize \texttt{AgentDecision}}};
+    \node[pstep, right=1.35cm of decide] (tools) {受控工具执行\\{\scriptsize \texttt{interpret / places / research}}\\ {\scriptsize \texttt{knowledge / routes}}};
+    \node[pstep, below=1.0cm of decide] (draft) {生成 / 修复草案\\{\scriptsize \texttt{draft}（最多 3 轮）}};
+    \node[gate, right=1.35cm of draft] (assess) {路线查询 + 规则核验\\+ 独立质量审核};
+    \node[done, right=1.15cm of assess] (finish) {生成活动介绍\\事务落盘新版本};
+
+    \node[gate, left=1.25cm of decide] (ask) {必要追问\\{\scriptsize \texttt{awaiting\_input}}};
+
+    \draw[arrow] (decide.east) -- node[above, font=\sffamily\scriptsize]{补齐信息} (tools.west);
+    \draw[arrow] (tools.north) -- ++(0,0.42) -| node[pos=0.25, above, font=\sffamily\scriptsize]{落盘检查点} (decide.north);
+    \draw[arrow] (decide.west) -- node[above, font=\sffamily\scriptsize]{关键缺口} (ask.east);
+    \draw[arrow] (ask.south) -- ++(0,-0.45) -| node[pos=0.25, below, font=\sffamily\scriptsize]{用户补答继续} (decide.south west);
+    \draw[arrow] (decide.south) -- node[right, font=\sffamily\scriptsize]{候选充足} (draft.north);
+    \draw[arrow] (draft.east) -- (assess.west);
+    \draw[arrow] (assess.north) -- ++(0,0.38) -| node[pos=0.22, above, font=\sffamily\scriptsize]{冲突反馈再修复} (decide.south east);
+    \draw[arrow] (assess.east) -- node[above, font=\sffamily\scriptsize]{\texttt{finish}} (finish.west);
+  \end{tikzpicture}
+  \caption{动态规划循环、检查点落盘与独立审核闭环}
+  \label{fig:planning-loop}
+\end{figure}
+
+如图~\ref{fig:planning-loop} 所示，动作循环围绕四项工程原则运转：
+
+\begin{itemize}
+  \item \textbf{职责切分清晰}：模型负责语义理解（\texttt{interpret}）、按缺口查询（\texttt{places} / \texttt{research} / \texttt{knowledge} / \texttt{routes}）、排程生成（\texttt{draft}）与必要追问（\texttt{ask}，单轮最多 2 问，仅针对必要缺口或预算口径冲突）；程序负责强制校验对象引用存在、日期合法、数值与原文一致以及时间/预算精确计算。
+  \item \textbf{有界运行与断点续跑}：单轮任务设置明确运行上限——最多 36 次决策、3 次草案生成、80 次工具动作、160 个候选地点上限，防止模型陷入无进展死循环。每次工具返回与审核完成后立即写入 \texttt{planning\_checkpoints}，进程异常中断后用户重试可复用已取得的公开地点与事实证据，并获得新一轮运行预算。
+  \item \textbf{独立审核与降级容错}：每次草案生成并查完相邻高德路线、跑完程序规则后，交给独立的 \texttt{review\_itinerary} 模型审查重复游览、景区入口别名、餐饮锚点合理性与旅行节奏。当审核遭遇网络或超时（\texttt{ProviderError}）时，系统不丢弃当前草案，也不伪造通过，而是记录 \texttt{quality\_unavailable}（\texttt{unknown}）并将状态降级为 \texttt{needs\_review}。
+  \item \textbf{独立介绍生成步骤}：行程定稿后，由单独步骤为每项活动撰写 30--70 字的中文特色介绍，明确隔离规划理由、预算金额与核验套话，使行程阅读体验自然清爽。
+\end{itemize}
+
+\subsection{确定性规则校验与关键缺陷治理}
+
+程序规则校验器（\texttt{validation.py}）是行程落地性的最后一道铁闸，负责检查：每日早中晚覆盖与餐饮覆盖、时段与开始分钟一致、地点坐标与城市完整性、当日闭馆/营业区间/停止入场时间、官方预约要求、单人/按组/固定费用与全团全程预算上限、相邻活动重叠与路线耗时、跨午夜重叠，以及用户明示抵离与已有预约时间约束。
+
+\begin{designnote}{工程实录：从真实案例中根治四类系统性缺陷（Phase 1）}
+  在早期真实多日规划试验中，系统暴露出几类反复导致行程被判 \texttt{blocked} 的结构性问题，本轮开发对其做了根因级修复并沉淀为 17 项回归测试：
+  \begin{enumerate}
+    \item \textbf{\texttt{transport\_mode} 方向歧义}：程序按后一项活动的 \texttt{transport\_mode} 查询相邻路线，但旧提示词未明示方向，导致模型在出发点填 \texttt{transit}、到达点填 \texttt{walking}，3.7--4.4 公里的跨区路段被误查步行。修复后在生成与审核提示词中统一明确该字段代表“从前项前往本项”，且同地点路线直接本地返回 0 秒 0 米，不再消耗高德调用配额。
+    \item \textbf{过渡占位活动与接驳重复计算}：模型曾把“乘地铁出发”拆成 10--15 分钟占位活动，或把去车站路途揉进车站候车活动里。规范化后，日间换乘统一由相邻活动间隔与后项 \texttt{transport\_mode} 承载，交通枢纽活动只覆盖站内出站或安检候车。
+    \item \textbf{首尾非完整日与交通枢纽误报}：针对抵达日与离城日，在时段覆盖判定中为抵达后预留 60 分钟、离开前预留 90 分钟接驳候车缓冲（如 18:00 离站不再强求安排晚间活动）；同时对明确属于火车站/机场等交通枢纽的 \texttt{leisure} 抵离活动豁免无意义的未知营业时间告警（若存在已知关闭仍正常报冲突）。
+    \item \textbf{编辑审核容错对齐与测试代理隔离}：将编辑器的质量审核超时处理与主流程统一降级为 \texttt{quality\_unavailable}；为本地集成测试的 \texttt{httpx.Client} 设置 \texttt{trust\_env=False}，彻底消除终端代理对回环端口测试的干扰。
+  \end{enumerate}
+\end{designnote}
+
+\subsection{定点局部编辑与历史版本管理}
+
+用户在查看草案后，可发起组合编辑操作：\texttt{add}（指定日期与插入位置新增活动）、\texttt{remove}（删除活动）、\texttt{replace}（替换地点或调整时长/费用）与 \texttt{move}（同日排序或明确指定跨日移动）。编辑器（\texttt{ItineraryEditor}）围绕“\textbf{只动该动的日期，守住未动的一切}”展开：
+
+\begin{enumerate}
+  \item \textbf{版本与城市校验}：校验 \texttt{expected\_revision} 与 \texttt{expected\_request\_revision}，防止基于旧版本覆盖写入；新增或替换地点须在当前城市高德检索结果中确认唯一 POI 标识。
+  \item \textbf{受影响日期定向刷新}：仅针对发生变动的日期集合 \texttt{affected}，由模型规划必要的公开事实补查，重新查询受影响日期的相邻路线并按营业窗口与抵达约束做日内顺延重排；\textbf{未受影响日期的活动、路线与事实依据原封不动复制保留}。
+  \item \textbf{费用继承与全程预算重算}：被修改日期若取得新的官方已核实价格则升级绑定，未取得新依据时保留原数值作为估算并解除旧日期的已核实标记；最后汇总全部日期重新核对全团全程预算与文字限制。
+  \item \textbf{历史版本可追溯}：只有完整通过结构校验的新草案才以单事务晋升为当前版本，旧版本继续保留为只读快照，用户可随时在界面切换对照。
+\end{enumerate}

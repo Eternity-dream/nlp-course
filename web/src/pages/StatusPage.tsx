@@ -17,6 +17,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 const PROVIDER_LABELS: Record<string, string> = {
   exa: 'Exa',
+  deepseek: 'DeepSeek',
   tavily: 'Tavily',
   anysearch: 'AnySearch',
 };
@@ -167,7 +168,9 @@ export function StatusPage() {
                 {PROVIDER_LABELS[provider.provider] || '搜索服务'}
               </div>
               <Badge variant={provider.configured ? 'success' : 'info'}>
-                {provider.configured ? '已配置' : '未配置'}
+                {provider.configured
+                  ? `${provider.auth_mode === 'anonymous' ? '匿名访问' : '密钥认证'} · ${provider.protocol.toUpperCase()}`
+                  : '未配置'}
               </Badge>
             </div>
           ))}
@@ -175,7 +178,7 @@ export function StatusPage() {
             size="sm"
             onClick={() => handleCheck('search')}
             loading={checking === 'search'}
-            disabled={config.search.length === 0}
+            disabled={!config.search.some(provider => provider.configured)}
           >
             检查
           </Button>

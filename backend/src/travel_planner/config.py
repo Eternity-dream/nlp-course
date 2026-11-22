@@ -4,6 +4,8 @@ from urllib.parse import urlsplit
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+SEARCH_PROVIDERS = ("exa", "deepseek", "tavily", "anysearch")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -15,9 +17,10 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_json_mode: bool = False
     provider_timeout_seconds: float = Field(default=30, ge=1, le=300)
-    search_providers: str = "exa,tavily,anysearch"
+    search_providers: str = ",".join(SEARCH_PROVIDERS)
     search_allow_anonymous: bool = True
     exa_api_key: SecretStr = SecretStr("")
+    deepseek_api_key: SecretStr = SecretStr("")
     tavily_api_key: SecretStr = SecretStr("")
     anysearch_api_key: SecretStr = SecretStr("")
     amap_api_key: SecretStr = SecretStr("")
@@ -48,24 +51,19 @@ class Settings(BaseSettings):
             if not valid:
                 errors.append("LLM_BASE_URL 需要有效的 HTTP(S) 基址，凭据请单独配置")
         order = [item.strip() for item in self.search_providers.split(",") if item.strip()]
-        if (
-            not order
-            or len(order) != len(set(order))
-            or set(order) - {"exa", "tavily", "anysearch"}
-        ):
-            errors.append("SEARCH_PROVIDERS 需要不重复的 exa、tavily、anysearch 列表")
+        if not order or len(order) != len(set(order)) or not set(order).issubset(SEARCH_PROVIDERS):
+            errors.append(f"SEARCH_PROVIDERS 需要不重复的 {'、'.join(SEARCH_PROVIDERS)} 列表")
         search = []
         for name in order:
-            if name not in {"exa", "tavily", "anysearch"}:
+            if name not in SEARCH_PROVIDERS:
                 continue
             key = getattr(self, f"{name}_api_key").get_secret_value().strip()
-            mode = (
-                "key"
-                if key
-                else (
-                    "anonymous" if self.search_allow_anonymous and name != "tavily" else "disabled"
-                )
-            )
+            if key:
+                mode = "key"
+            elif self.search_allow_anonymous and name in {"exa", "anysearch"}:
+                mode = "anonymous"
+            else:
+                mode = "disabled"
             search.append(
                 {
                     "provider": name,

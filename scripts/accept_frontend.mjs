@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
-import { checkKnowledgeDetails, checkTimeConstraints } from './frontend_details.mjs';
+import { checkDateBounds, checkFailedSource, checkInlineImports, checkKnowledgeDetails, checkTimeConstraints } from './frontend_details.mjs';
 
 const require = createRequire(new URL('../web/package.json', import.meta.url));
 const { chromium } = require('playwright');
@@ -18,7 +18,7 @@ assert(values['base-url'] && values['output-dir'],
 const base = values['base-url'].replace(/\/$/, '');
 const output = path.resolve(values['output-dir']);
 await fs.mkdir(output, { recursive: false });
-const report = { checks: [], pageErrors: [], accessibility: [], layoutIssues: [], started_at: new Date().toISOString() };
+const report = { checks: [], pageErrors: [], consoleErrors: [], expectedHttpErrors: [], accessibility: [], layoutIssues: [], started_at: new Date().toISOString() };
 const browser = await chromium.launch();
 const context = await browser.newContext({
   viewport: { width: 1440, height: 1000 }, locale: 'zh-CN', timezoneId: 'Asia/Shanghai', reducedMotion: 'reduce',
@@ -26,7 +26,25 @@ const context = await browser.newContext({
 const page = await context.newPage();
 page.setDefaultTimeout(15000);
 page.on('pageerror', error => report.pageErrors.push(error.message));
-page.on('dialog', dialog => dialog.accept());
+let dismissNext = false;
+page.on('dialog', dialog => {
+  const dismiss = dismissNext;
+  dismissNext = false;
+  return dismiss ? dialog.dismiss() : dialog.accept();
+});
+page.on('console', message => {
+  if (message.type() !== 'error') return;
+  const url = new URL(message.location().url || base);
+  const record = { path: url.pathname, message: message.text() };
+  const expected = {
+    404: /^\/api\/trips\/[^/]+\/itinerary$/,
+    409: /^\/api\/(preferences|trips\/[^/]+)$/,
+    422: /^\/api\/trips$/,
+    503: /^\/api\/(config\/status|jobs\/[^/]+\/resume|knowledge)$/,
+  };
+  const status = /Failed to load resource: the server responded with a status of (\d+)/.exec(record.message)?.[1];
+  (expected[status]?.test(url.pathname) ? report.expectedHttpErrors : report.consoleErrors).push(record);
+});
 const checked = text => { report.checks.push(text); console.log(`通过：${text}`); };
 const api = async (route, options = {}) => {
   const response = await fetch(base + route, {
@@ -44,7 +62,7 @@ const poll = async (read, predicate) => {
   }
   throw new Error('等待后台结果超时');
 };
-async function capture(name, accessibility = false) {
+async function capture(name, accessibility = true) {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(output, name + '.png'), fullPage: true });
@@ -58,9 +76,20 @@ async function capture(name, accessibility = false) {
   if (accessibility) {
     await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
     const result = await page.evaluate(async () => window.axe.run(document, {
-      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'] },
     }));
     report.accessibility.push({ page: name, violations: result.violations });
+  }
+}
+
+async function checkProviders(modes) {
+  const rows = page.locator('.status-provider');
+  assert.deepEqual(await rows.locator('.status-provider-name').allTextContents(), ['Exa', 'DeepSeek', 'Tavily', 'AnySearch']);
+  assert.deepEqual(await rows.locator('.badge').allTextContents(), modes);
+  const body = await page.locator('body').innerText();
+  const payload = await page.evaluate(async () => (await fetch('/api/config/status')).text());
+  for (const secret of ['exa-secret', 'deepseek-acceptance-key', 'model-secret', 'map-secret']) {
+    assert(!body.includes(secret) && !payload.includes(secret), '状态页暴露了验收密钥');
   }
 }
 
@@ -70,6 +99,8 @@ try {
   await capture('desktop-home', true);
   assert.deepEqual(await page.locator('header nav a').allTextContents(), ['行程', '设置']);
   await page.getByRole('link', { name: '设置', exact: true }).click();
+  assert.deepEqual(await page.locator('.settings-links a').allTextContents(), ['旅行偏好', '参考资料', '服务状态']);
+  await capture('desktop-settings');
   await page.getByRole('link', { name: '旅行偏好', exact: true }).click();
   await page.getByRole('heading', { name: '旅行偏好', exact: true }).waitFor();
   const clear = page.getByRole('button', { name: '清空', exact: true });
@@ -77,6 +108,23 @@ try {
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await poll(() => api('/api/preferences'), data => data.notes === '喜欢历史建筑，慢节奏，不吃辣');
   await capture('desktop-preferences', true);
+  const stored = await api('/api/preferences');
+  const concurrent = await api('/api/preferences', { method: 'PUT', body: JSON.stringify({
+    expected_revision: stored.revision, notes: '想慢慢看展览，午后留时间休息。',
+  }) });
+  await page.getByRole('textbox', { name: '旅行习惯' }).fill('较早页面的草稿');
+  const conflict = page.waitForResponse(r => r.url().endsWith('/api/preferences') && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  assert.equal((await conflict).status(), 409);
+  await page.getByRole('alert').filter({ hasText: '偏好已更新' }).waitFor();
+  await page.getByRole('button', { name: '重新加载' }).click();
+  await poll(() => page.getByRole('textbox', { name: '旅行习惯' }).inputValue(), text => text === concurrent.notes);
+  checked('并发偏好旧版本返回409、显示冲突并重新载入新原文');
+  dismissNext = true;
+  const confirmation = page.waitForEvent('dialog');
+  await clear.click();
+  assert.equal((await confirmation).message(), '确定清空旅行偏好？');
+  assert.deepEqual(await api('/api/preferences'), concurrent);
   await clear.click();
   await poll(() => api('/api/preferences'), data => data.notes === '');
   checked('偏好保存与清空');
@@ -96,6 +144,8 @@ try {
   assert((await original.text()).includes('西安碑林博物馆'));
   checked('文本导入、后台解析和原文下载');
   await checkKnowledgeDetails({ page, base, api, poll, capture, checked, title, sourceId: report.source_id });
+  await checkFailedSource({ page, base, api, poll, checked });
+  await checkDateBounds({ page, base, api, checked });
 
   await page.getByRole('link', { name: '行程', exact: true }).click();
   await page.getByRole('button', { name: '新建行程', exact: true }).first().click();
@@ -104,6 +154,7 @@ try {
   await page.getByLabel('结束日期', { exact: true }).fill('2026-12-03');
   await page.getByLabel('同行人数', { exact: true }).fill('2');
   await page.getByLabel(/预算/).fill('3000.55');
+  await checkInlineImports({ page, base, api, poll, checked });
   await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
   const inlineTitle = `西安表单参考 ${Date.now()}`;
   await page.getByRole('dialog').getByLabel('正文', { exact: true }).fill(inlineTitle);
@@ -114,7 +165,15 @@ try {
   await page.getByRole('button', { name: `移除${inlineTitle}`, exact: true }).click();
   await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
   await page.getByRole('button', { name: '已有资料', exact: true }).click();
-  await page.getByRole('checkbox', { name: new RegExp(inlineTitle) }).waitFor();
+  const removed = page.getByRole('checkbox', { name: new RegExp(inlineTitle) });
+  await removed.check();
+  assert(await removed.isChecked());
+  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('button', { name: `移除${inlineTitle}`, exact: true }).click();
+  await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
+  await page.getByRole('button', { name: '已有资料', exact: true }).click();
+  await removed.waitFor();
+  await capture('desktop-reference-dialog');
   checked('表单内导入参考、自动标题、保留输入与移除关联');
   await page.getByRole('checkbox', { name: new RegExp(title) }).check();
   await page.getByRole('button', { name: '完成', exact: true }).click();
@@ -316,6 +375,8 @@ try {
 
   await page.goto(base + '/status');
   await page.getByRole('heading', { name: '服务状态', exact: true }).waitFor();
+  await checkProviders(['密钥认证 · REST', '密钥认证 · REST', '未配置', '匿名访问 · REST']);
+  checked('四家搜索名称、顺序、密钥与匿名模式、禁用状态及响应脱敏');
   const checksBefore = (await api('/api/config/checks')).length;
   await page.getByRole('button', { name: '检查', exact: true }).last().click();
   await poll(() => api('/api/config/checks'), data => data.length > checksBefore);
@@ -327,18 +388,27 @@ try {
 
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const [route, name] of [['/', 'home'], ['/knowledge', 'knowledge'], ['/preferences', 'preferences'], ['/status', 'services'], [`/trips/${tripId}`, 'itinerary']]) {
+    for (const [route, name] of [['/', 'home'], ['/settings', 'settings'], ['/knowledge', 'knowledge'], ['/preferences', 'preferences'], ['/status', 'services'], [`/trips/${tripId}`, 'itinerary']]) {
       await page.goto(base + route);
       await page.locator('h1').waitFor();
       if (name === 'itinerary') await page.getByRole('heading', { name: '行程草案', exact: true }).waitFor();
       await capture(`mobile-${width}-${name}`);
     }
+    await page.goto(base);
+    await page.getByRole('button', { name: '新建行程', exact: true }).first().click();
+    await capture(`mobile-${width}-trip-form`);
+    await page.getByRole('button', { name: '＋ 添加参考', exact: true }).click();
+    await page.getByRole('dialog').waitFor();
+    await capture(`mobile-${width}-reference-dialog`);
   }
   if (report.layoutIssues.length === 0) checked('390px、320px页面布局和路由直达');
 
   if (values['missing-config-url']) {
     await page.goto(values['missing-config-url'].replace(/\/$/, '') + '/status');
     await page.getByRole('heading', { name: '服务状态', exact: true }).waitFor();
+    await checkProviders(['未配置', '未配置', '未配置', '未配置']);
+    assert.deepEqual(await page.locator('.status-missing-item').allTextContents(),
+      ['模型地址', '模型密钥', '模型名称', '地图密钥']);
     assert(!/LLM_API_KEY|AMAP_API_KEY|auth_mode/.test(await page.locator('body').innerText()));
     await capture('missing-config', true);
     checked('缺配置状态与用户文案');
@@ -349,6 +419,7 @@ try {
   await capture('service-error');
   checked('服务错误提示与重试入口');
   assert.deepEqual(report.pageErrors, []);
+  assert.deepEqual(report.consoleErrors, [], '存在意外控制台错误');
   assert.deepEqual(report.layoutIssues, [], '页面存在横向溢出');
   assert.equal(report.accessibility.reduce((sum, item) => sum + item.violations.length, 0), 0,
     '页面存在无障碍问题，见 accessibility 记录');

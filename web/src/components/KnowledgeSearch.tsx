@@ -70,7 +70,6 @@ export function KnowledgeSearch({ onOpen }: KnowledgeSearchProps) {
                 type="button"
                 className="hit-item"
                 onClick={() => onOpen(hit.source_id, hit)}
-                aria-label={`打开资料：${hit.title}`}
               >
                 <span className="hit-title">{hit.title}</span>
                 {(hit.page != null || hit.paragraph != null) && (

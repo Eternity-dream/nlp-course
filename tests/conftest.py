@@ -7,7 +7,8 @@ from travel_planner.main import create_app
 
 
 @pytest.fixture
-def settings(tmp_path):
+def settings(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEARCH_PROVIDERS", raising=False)
     return Settings(
         _env_file=None,
         data_dir=tmp_path / "data",
@@ -17,9 +18,9 @@ def settings(tmp_path):
         llm_model="",
         amap_api_key="",
         exa_api_key="",
+        deepseek_api_key="",
         tavily_api_key="",
         anysearch_api_key="",
-        search_providers="exa,tavily,anysearch",
         search_allow_anonymous=True,
     )
 

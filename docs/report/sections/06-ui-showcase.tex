@@ -1,0 +1,87 @@
+\section{前端交互设计与核心界面展示}
+
+\subsection{信息架构与视觉克制}
+
+前端界面基于 React 18、TypeScript 与 Vite 构建，遵循 \texttt{design.md} 确立的简洁、留白充足、语义清晰的设计语言。为降低个人日常使用的认知负担，顶部导航最终收敛为“\textbf{行程}”与“\textbf{设置}”两个一级入口：行程侧承载列表、新建表单、后台进度、按天视图、局部编辑与历史版本；设置侧聚合“旅行偏好”“参考资料”与“服务状态”三项管理能力。所有页面均适配 1440px 桌面端与 390px / 320px 手机端，并完整支持键盘导航与屏幕阅读器语义。
+
+以下 8 张高清界面截图均按 $2\times$ 像素密度采集自\textbf{真实西安五日游验收恢复实例}（版本 2 与历史版本 1）的独立运行环境，真实呈现系统各核心页面的落地形态。
+
+\subsection{行程列表、新建表单与参考资料联动}
+
+如图~\ref{fig:ui-home-form} 所示，首页直奔主题呈现当前保存的行程卡片（目的地、日期区间、同行人数与全团预算）以及“新建行程”主操作入口。点击新建进入表单后，系统将原本繁琐的多栏条件收拢为自然表达的“补充说明（选填）”，并允许通过内嵌弹窗在当前页面完成已有资料勾选或新资料导入——导入失败时保留所有已填表单内容，避免重复输入。抵达、离开与已有预约时间则通过独立的“时间安排”模块结构化录入。
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \screenframe[width=0.96\linewidth]{images/01-trips-home.png}
+    \caption{行程列表首页与极简两项顶栏导航}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \screenframe[width=0.96\linewidth]{images/02-trip-form-references.png}
+    \caption{新建行程表单与参考资料选择/导入弹窗}
+  \end{subfigure}
+  \caption{行程入口与表单内参考资料关联界面}
+  \label{fig:ui-home-form}
+\end{figure}
+
+\subsection{按天行程、自由用餐与可溯源事实展示}
+
+任务提交后，页面展示基于已完成阶段的“预计”进度条（刷新或关闭浏览器后重新打开可自动恢复状态）；规划完成后立即收敛进度条，默认将按天行程置于视觉中心，行程要求与费用核验摘要默认折叠，减少整页告警堆叠带来的压迫感。
+
+图~\ref{fig:ui-itinerary-5days} 展示了真实西安五日游前两天的呈现效果：每项活动卡片清晰列出早中晚时段、计划时间、地点名称、地址、模型生成的 30--70 字纯特色介绍（不含规划理由与核验套话）、门票或餐费标签，以及活动间的真实交通方式、耗时、距离与费用估算。餐饮卡片以半小时粒度的“约略时段”呈现自由用餐，自动隐藏锚点景点的具体门店地址与无关事实，体验清爽自然；每张卡片右上角集成同日排序、跨日移动、编辑与删除入口。
+
+\begin{figure}[H]
+  \centering
+  \screenframe[width=0.94\textwidth,height=0.74\textheight,keepaspectratio]{images/03-itinerary-xian-5days.png}
+  \caption{真实西安五日游主行程页面（前两天按天日程、活动介绍、自由用餐与相邻交通）}
+  \label{fig:ui-itinerary-5days}
+\end{figure}
+
+图~\ref{fig:ui-evidence-versions} 进一步展示了本系统的差异化核心——\textbf{版本留档与可溯源核验}。上方为局部编辑后生成的第 2 版折叠区展开视图，汇总列出全团“已知费用 \textyen{}410、估算费用 \textyen{}1354、待确认费用 7 项”以及清晰归类的核验详情；下方切换到只读的第 1 版并展开秦始皇帝陵博物院的 4 条事实依据，逐条呈现淡季开放区间与最后入场时间、普通成人票（\textyen{}120）与学生半价票（\textyen{}60）分项记录、实名制线上预约要求，以及每条记录对应的原文引句、可点击来源链接与精确查询时间戳。
+
+\begin{figure}[H]
+  \centering
+  \screenframe[width=0.94\textwidth,height=0.72\textheight,keepaspectratio]{images/04-itinerary-evidence-versions.png}
+  \caption{费用与核验详情展开、历史版本只读切换及秦始皇帝陵博物院事实依据溯源}
+  \label{fig:ui-evidence-versions}
+\end{figure}
+
+\subsection{参考资料检索、旅行偏好与四家服务状态}
+
+进入“设置”后的三大功能页各自职责纯粹、互不干扰。图~\ref{fig:ui-knowledge-pref} 左侧为参考资料页：展示全部已导入资料的状态标签（“可检索”）、来源类型、导入时间、原文下载与删除按钮；输入中文短词“碑林”后，本机 FTS5 即时返回全部命中笔记并精确定位至对应段落号。右侧为旅行偏好页：以一整块自然语言文本框承载用户的长期习惯，配合保存与二次确认清空操作，无冗杂表单负担。
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \screenframe[width=0.96\linewidth]{images/05-knowledge-search.png}
+    \caption{参考资料管理与中文短词“碑林”检索定位}
+  \end{subfigure}\hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \screenframe[width=0.96\linewidth]{images/06-preferences.png}
+    \caption{自然语言旅行偏好设置页面}
+  \end{subfigure}
+  \caption{个人知识库检索与旅行偏好管理界面}
+  \label{fig:ui-knowledge-pref}
+\end{figure}
+
+图~\ref{fig:ui-status-mobile} 左侧呈现“服务状态”页面：顶部汇总规划就绪状态，中部依次列出模型、四家联网搜索提供方（\textbf{Exa 匿名访问·MCP $\rightarrow$ DeepSeek 密钥认证·REST $\rightarrow$ Tavily 未配置 $\rightarrow$ AnySearch 匿名访问·REST}）与高德地图的配置概览，底部记录每次用户手动触发的连通性检查历史与时间，全程无完整密钥暴露，同时显示系统当前是否处于可安全停服备份的“空闲”状态。右侧则展示 390px 手机窄屏下的西安五日游卡片布局，按钮换行整齐、信息层级完整，在 390px 与 320px 实测中均实现零横向溢出。
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.60\textwidth}
+    \centering
+    \screenframe[width=0.96\linewidth,height=0.56\textheight,keepaspectratio]{images/07-status-providers.png}
+    \caption{服务状态页（四家搜索配置与显式检查历史）}
+  \end{subfigure}\hfill
+  \begin{subfigure}[b]{0.36\textwidth}
+    \centering
+    \screenframe[width=0.94\linewidth,height=0.56\textheight,keepaspectratio]{images/08-mobile-itinerary.png}
+    \caption{390px 移动端西安五日游响应式视图}
+  \end{subfigure}
+  \caption{四家外部服务状态监控与移动端响应式界面}
+  \label{fig:ui-status-mobile}
+\end{figure}

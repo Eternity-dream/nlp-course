@@ -42,6 +42,33 @@ async def test_rest_mapping_and_auth(settings, samples, name):
             assert sources[0].text == "网页正文：西湖步行路线。"
 
 
+async def test_deepseek_search_maps_content_and_truncates_unicode_query(samples):
+    query = "杭州🏛" * 50
+
+    def handle(request):
+        assert request.method == "POST"
+        assert str(request.url) == "https://api.deepseek.com/v1/tools/search"
+        assert request.headers["authorization"] == "Bearer search-key"
+        assert json.loads(request.content) == {
+            "query": query[:128],
+            "count": 2,
+            "need_content": True,
+        }
+        return httpx.Response(200, json=samples["search"]["deepseek"])
+
+    client, http = make_http(handle)
+    async with client:
+        article, preview = await RestSearch("deepseek", "search-key", http).search(f"  {query} ", 2)
+    assert article.provider == "deepseek"
+    assert article.title == "博物馆参观公告"
+    assert article.snippet == "开放时间公告"
+    assert article.published_at == "2026-11-01T08:00:00Z"
+    assert article.text == "博物馆每周二至周日开放。"
+    assert article.fetched_at is not None
+    assert preview.snippet == "预约需提前办理。"
+    assert preview.text is preview.fetched_at is preview.published_at is None
+
+
 async def test_first_success_stops_and_identical_query_cached_per_task(settings, samples):
     calls = []
 
@@ -76,21 +103,21 @@ async def test_auth_quota_disable_for_task_and_do_not_switch_to_anonymous(
         calls.append(request.url.host)
         if request.url.host == "api.exa.ai":
             return httpx.Response(status, text="password=hidden api_key=hidden")
-        assert request.url.host == "api.tavily.com"
-        return httpx.Response(200, json=samples["search"]["tavily"])
+        assert request.url.host == "api.deepseek.com"
+        return httpx.Response(200, json=samples["search"]["deepseek"])
 
     client, _ = make_http(handle)
     async with client:
         engine = Services(configured(settings), client).search
         scope = engine.scope()
         result = await scope.search("西安", "博物馆")
-        assert result.sources[0].provider == "tavily"
+        assert result.sources[0].provider == "deepseek"
         assert "hidden" not in result.model_dump_json()
         assert result.attempts[0].auth_mode == "key"
         await scope.search("西安", "票价")
-        assert calls == ["api.exa.ai", "api.tavily.com", "api.tavily.com"]
+        assert calls == ["api.exa.ai", "api.deepseek.com", "api.deepseek.com"]
         await engine.scope().search("西安", "新的任务")
-        assert calls[-2:] == ["api.exa.ai", "api.tavily.com"]
+        assert calls[-2:] == ["api.exa.ai", "api.deepseek.com"]
 
 
 async def test_retry_after_shared_between_tasks_search_and_fetch(settings, samples):
@@ -108,10 +135,16 @@ async def test_retry_after_shared_between_tasks_search_and_fetch(settings, sampl
 
     client, _ = make_http(handle)
     async with client:
-        engine = Services(configured(settings), client).search
+        engine = Services(configured(settings, deepseek_api_key=""), client).search
         engine.local_fetch = None
         first = await engine.scope().search("西安", "开放时间")
         assert first.attempts[0].retry_at > datetime.now(UTC)
+        assert [(a.provider, a.outcome) for a in first.attempts] == [
+            ("exa", "failed"),
+            ("deepseek", "skipped"),
+            ("tavily", "succeeded"),
+        ]
+        assert first.attempts[1].auth_mode == "disabled"
         second = engine.scope()
         result = await second.search("杭州", "博物馆")
         assert result.attempts[0].outcome == "skipped"
@@ -128,6 +161,45 @@ async def test_retry_after_shared_between_tasks_search_and_fetch(settings, sampl
         assert calls.count("api.exa.ai") == 2
 
 
+@pytest.mark.parametrize(
+    "status,code", [(402, "provider_quota_exhausted"), (429, "provider_rate_limited")]
+)
+async def test_deepseek_quota_and_cooldown_fall_back_to_tavily(settings, samples, status, code):
+    calls = []
+
+    def handle(request):
+        calls.append(request.url.host)
+        if request.url.host == "api.exa.ai":
+            return httpx.Response(503)
+        if request.url.host == "api.deepseek.com":
+            return httpx.Response(status, headers={"Retry-After": "120"} if status == 429 else {})
+        assert request.url.host == "api.tavily.com"
+        return httpx.Response(200, json=samples["search"]["tavily"])
+
+    client, _ = make_http(handle)
+    async with client:
+        engine = Services(configured(settings), client).search
+        scope = engine.scope()
+        first = await scope.search("西安", "票价")
+        assert [(a.provider, a.outcome) for a in first.attempts] == [
+            ("exa", "failed"),
+            ("deepseek", "failed"),
+            ("tavily", "succeeded"),
+        ]
+        assert first.attempts[1].error["code"] == code
+        if status == 429:
+            assert first.attempts[1].retry_at > datetime.now(UTC)
+            scope = engine.scope()
+        second = await scope.search("杭州", "开放时间")
+        assert second.sources[0].provider == "tavily"
+        assert second.attempts[1].outcome == "skipped"
+        assert second.attempts[1].error["code"] == code
+        assert calls.count("api.deepseek.com") == 1
+        if status == 402:
+            await engine.scope().search("西安", "新任务")
+            assert calls.count("api.deepseek.com") == 2
+
+
 async def test_no_retry_after_skips_remaining_task_then_next_task_retries(settings, samples):
     calls = []
 
@@ -135,7 +207,7 @@ async def test_no_retry_after_skips_remaining_task_then_next_task_retries(settin
         calls.append(request.url.host)
         if request.url.host == "api.exa.ai":
             return httpx.Response(429)
-        return httpx.Response(200, json=samples["search"]["tavily"])
+        return httpx.Response(200, json=samples["search"]["deepseek"])
 
     client, _ = make_http(handle)
     async with client:
@@ -149,7 +221,7 @@ async def test_no_retry_after_skips_remaining_task_then_next_task_retries(settin
         assert calls.count("api.exa.ai") == 2
 
 
-async def test_skip_missing_tavily_then_anysearch_anonymous(settings, samples):
+async def test_skip_missing_deepseek_and_tavily_then_anysearch_anonymous(settings, samples):
     calls = []
 
     def handle(request):
@@ -162,11 +234,15 @@ async def test_skip_missing_tavily_then_anysearch_anonymous(settings, samples):
 
     client, _ = make_http(handle)
     async with client:
-        config = configured(settings, tavily_api_key="", anysearch_api_key="")
+        config = configured(settings, deepseek_api_key="", tavily_api_key="", anysearch_api_key="")
         result = await Services(config, client).search.scope().search("杭州", "开放时间")
     assert result.sources[0].provider == "anysearch"
-    assert result.attempts[1].outcome == "skipped"
-    assert result.attempts[2].auth_mode == "anonymous"
+    assert [(a.provider, a.auth_mode, a.outcome) for a in result.attempts] == [
+        ("exa", "key", "failed"),
+        ("deepseek", "disabled", "skipped"),
+        ("tavily", "disabled", "skipped"),
+        ("anysearch", "anonymous", "succeeded"),
+    ]
     assert len(calls) == 2
 
 
@@ -196,7 +272,7 @@ async def test_all_failed_returns_reasons_and_keeps_prior_sources(settings, samp
         succeeded = False
         result = await scope.search("西安", "不可用来源")
         assert result.status == "unavailable"
-        assert len(result.attempts) == 3
+        assert [a.provider for a in result.attempts] == ["exa", "deepseek", "tavily", "anysearch"]
         assert all(attempt.error for attempt in result.attempts)
         assert first.sources[0].id in scope.sources
         assert "secret" not in result.model_dump_json()
@@ -260,7 +336,7 @@ async def test_cached_body_and_local_extraction_precede_provider_fetch(settings)
     assert (await scope.fetch(result.sources[0])).attempts == []
 
 
-@pytest.mark.parametrize("name", ["exa", "tavily", "anysearch"])
+@pytest.mark.parametrize("name", ["exa", "deepseek", "tavily", "anysearch"])
 async def test_rest_fetch_requests_and_body_mapping(name):
     url = "https://example.com/museum"
 
@@ -271,6 +347,12 @@ async def test_rest_fetch_requests_and_body_mapping(name):
             assert body["ids"] == [url]
             assert body["maxAgeHours"] == 0
             result = {"results": [{"url": url, "text": "正文"}]}
+        elif name == "deepseek":
+            assert request.method == "POST"
+            assert str(request.url) == "https://api.deepseek.com/v1/tools/fetch"
+            assert request.headers["authorization"] == "Bearer key"
+            assert body == {"url": url}
+            result = {"title": "博物馆", "content": "正文"}
         elif name == "tavily":
             assert request.url.path == "/extract"
             assert body["urls"] == [url]
@@ -287,6 +369,9 @@ async def test_rest_fetch_requests_and_body_mapping(name):
         assert len(result) == 1
         assert result[0].text == "正文"
         assert result[0].fetched_at
+        assert result[0].url == url
+        if name == "deepseek":
+            assert result[0].title == "博物馆"
 
 
 async def test_title_and_snippet_do_not_count_as_fetched_body():
@@ -321,6 +406,9 @@ async def test_fetch_failure_falls_back_and_does_not_disable_search(settings, sa
                     ],
                 },
             )
+        if request.url.host == "api.deepseek.com":
+            assert request.url.path == "/v1/tools/fetch"
+            return httpx.Response(200, json={"title": "博物馆", "content": ""})
         if request.url.host == "api.tavily.com":
             return httpx.Response(
                 200, json={"results": [{"url": "https://example.com", "raw_content": "正文"}]}
@@ -340,10 +428,16 @@ async def test_fetch_failure_falls_back_and_does_not_disable_search(settings, sa
             queried_at=datetime.now(UTC),
         )
         result = await scope.fetch(source)
+        assert [(a.provider, a.outcome) for a in result.attempts] == [
+            ("exa", "failed"),
+            ("deepseek", "failed"),
+            ("tavily", "succeeded"),
+        ]
+        assert result.attempts[1].error["code"] == "provider_source_unavailable"
         assert result.sources[0].provider == "tavily"
         assert result.sources[0].id == "s1"
         assert not scope.disabled
         second = await scope.fetch(source.model_copy(update={"id": "s2"}))
         assert second.sources[0].id == "s2"
-        assert len(calls) == 2
+        assert len(calls) == 3
         assert (await scope.search("西安", "博物馆")).sources[0].provider == "exa"

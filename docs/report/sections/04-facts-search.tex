@@ -1,0 +1,48 @@
+\section{可溯源事实核验与四家搜索回退}
+
+\subsection{分离式事实提取与双重校验管线}
+
+自由行规划最难把控的不是景点推荐，而是\textbf{带时效边界的事实}——某座博物馆在 12 月是否执行淡季票价、周一是否闭馆、停止入馆时间是否早于闭馆时间、联票与普通成人票如何区分、是否需要实名制提前预约。如果只让模型读完网页直接吐出“开放时间 08:30--17:00，门票 120 元”，既难以拦截模型拼接臆造，也无法发现过期公告被错当现行规则。
+
+为此，系统在 \texttt{collection.py}、\texttt{evidence.py} 与 \texttt{fact\_verification.py} 中构建了“\textbf{三段式原文引用 + 独立语义审核 + 程序确定性复算}”的三重防线：
+
+\begin{enumerate}
+  \item \textbf{三段原文严格分离}：提取模型对每条候选事实（\texttt{opening\_hours}、\texttt{ticket\_price}、\texttt{meal\_price} 或 \texttt{reservation}）必须分别给出三段逐字取自抓取正文的连续切片：\texttt{identity\_quote}（证明正文指向的是目标城市的具体场馆或分馆）、\texttt{quote}（包含确切时间、闭馆、票价或预约表述）以及 \texttt{applicability.quote}（明确日期、季节或每周适用规则）。长网页按 16,000 字符上限节选时插入 \texttt{[正文节选分隔]} 标记，程序明确拒绝跨越分隔符的伪造拼接引用。
+  \item \textbf{独立语义审核（\texttt{FactChecks}）}：将提取结果与原始正文交给独立的核对步骤，逐条判定三个语义维度——\texttt{identity}（馆区、城市与分店是否准确对应）、\texttt{interpretation}（数值、票种口径、星期、季节与例外条件是否忠于全文，不遗漏正文中的闭馆公告）以及 \texttt{authority}（发布者与域名是否属于运营机构或政府官方来源，博客、攻略、票务代理均划归 \texttt{secondary}）。
+  \item \textbf{程序确定性复算与冲突保全}：程序逐条验证三段引用在正文中的 NFKC 规范化子串存在性，校验时间区间（支持官网常见的“开放入馆时间/闭馆时间”分项标签，确保停止入馆时间不替代闭馆时间）与金额口径（防止“每车/全团”价格被误作“每人”票价，也不将儿童或学生优惠价直接套用于全体成人），再按 \texttt{exact}（单日）、\texttt{range}（日期区间）、\texttt{recurring}（支持跨年 \texttt{MM-DD} 淡旺季与 ISO 星期 1--7，并处理 \texttt{excluded\_dates} 排除日期）计算目标日期是否落入适用范围。
+\end{enumerate}
+
+只有当原文存在、身份匹配、解释无误、日期规则明确适用、数值相符且发布者为官方来源时，事实才会被授予 \texttt{supported} 状态；第三方来源、含节假日例外或缺少明确适用日期但数值有据的记录降级为 \texttt{estimated}；过期公告、身份不符、审核超时或未在原文找到对应数值的记录一律保持 \texttt{unknown}。不同票种按 \texttt{price\_scope}（如普通成人票与联票）分别归组，同一地点、日期与票种下若出现互相矛盾的有效来源，系统将其全部标为 \texttt{conflict} 并列展示，不私自替用户裁决。任务断点重试时，\texttt{recheck\_saved\_evidence} 可直接复用已保存原文与语义审核重新计算校验等级，并保持原有事实 ID 不变。
+
+\subsection{四家搜索与正文抓取回退链路}
+
+考虑到单一搜索服务的免费额度、速率限制与国内网络可达性波动，系统将搜索与模型彻底解耦，通过统一的 \texttt{SearchEngine} 与 \texttt{SearchScope} 抽象实现 \textbf{Exa $\rightarrow$ DeepSeek $\rightarrow$ Tavily $\rightarrow$ AnySearch} 四家顺序回退（默认 \texttt{SEARCH\_PROVIDERS=exa,deepseek,tavily,anysearch}），各提供方协议特征如表~\ref{tab:search-providers} 所示。
+
+\begin{table}[H]
+  \centering
+  \caption{四家联网搜索与正文抓取服务协议对比与回退策略}
+  \label{tab:search-providers}
+  \renewcommand{\arraystretch}{1.28}
+  \begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash\sffamily\bfseries}p{2.0cm} >{\raggedright\arraybackslash\sffamily}p{2.8cm} >{\raggedright\arraybackslash\sffamily}p{3.4cm} Y @{}}
+    \toprule
+    优先级 & 鉴权与协议 & 端点与关键参数 & 适配要点与计费特征 \\
+    \midrule
+    1. Exa & 有 Key 走 REST；无 Key 走托管 MCP & REST \texttt{/search}、\texttt{/contents}；匿名 \texttt{mcp.exa.ai/mcp} & 无 Key 经 MCP 初始化与 \texttt{tools/list} 动态发现工具；匿名约每 IP 2 QPS、50 次/日；识别 HTTP 200 内的 JSON-RPC \texttt{error} 与 \texttt{isError}。 \\
+    2. DeepSeek & 独立 \texttt{DEEPSEEK\_API\_KEY}，Bearer（无匿名） & \texttt{POST /v1/tools/search}、\texttt{POST /v1/tools/fetch} & 搜索严格截断 \texttt{query} 至 128 Unicode 字符，传 \texttt{need\_content=true} 一次拿正文；Fetch 仅返 \texttt{title/content}，适配层回填原 URL；按成功非空请求计次（约 5 元 / \$0.75 每千次）。 \\
+    3. Tavily & 独立 \texttt{TAVILY\_API\_KEY}，Bearer（无匿名） & \texttt{POST /search}、\texttt{POST /extract} & 区分 \texttt{content} 摘要与 \texttt{raw\_content} 正文；未配置 Key 时自动跳过并记录 \texttt{not\_configured}。 \\
+    4. AnySearch & 认证或匿名 REST（按 IP 限额） & \texttt{POST /v1/search}、\texttt{POST /v1/extract} & 适配中文区参数（\texttt{zone=cn}）；识别 \texttt{code != 0} 与 \texttt{422 extract\_failed} 为单页不可抓，避免误禁用整家服务。 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+在容灾与配额控制上，回退引擎实现了四条精细机制：
+\begin{itemize}
+  \item \textbf{任务内去重与成功即停}：同一任务内等价查询命中缓存直接复用；按序串行尝试，任意一家返回有效来源即刻停止切换。
+  \item \textbf{正文抓取本地优先}：若搜索结果未自带正文，优先尝试受 SSRF 保护的本地公开网页正文提取（\texttt{local\_fetch}），失败后再沿四家搜索服务的 Fetch 接口依次回退。
+  \item \textbf{跨任务共享冷却与故障隔离}：遇 \texttt{429} 限流立即记录 \texttt{Retry-After} 或重置时间并在整个执行器内按 \texttt{(provider, auth\_mode)} 共享冷却期，后续排队任务自动跳过；遇 \texttt{401/403} 鉴权失败或 \texttt{402} 余额不足则在当前任务内禁用该提供方，绝不将带 Key 失败偷偷回退到同服务的匿名模式。
+  \item \textbf{提供方错误与单页错误分离}：单个目标网页返回空正文或拒绝抓取被精确归类为 \texttt{source\_unavailable}，仅影响该 URL 回退，不会误伤整家搜索服务。
+\end{itemize}
+
+\subsection{DeepSeek Search 与 Fetch 协议实测}
+
+在将 DeepSeek 接入 Exa 与 Tavily 之间后，我们使用独立 \texttt{DEEPSEEK\_API\_KEY} 对真实线上接口执行了最小端到端探针（查询“西安 兵马俑 开放时间”，\texttt{count=2}，\texttt{need\_content=true}）。实测 \texttt{POST /v1/tools/search} 返回 HTTP 200，顶层为 \texttt{results}，每项完整包含 \texttt{title}、\texttt{url}、\texttt{snippet}、\texttt{summary}、\texttt{content}、\texttt{date} 及相关性元字段；随后对首条链接执行 \texttt{POST /v1/tools/fetch} 返回 HTTP 200 及 \texttt{\{title, content\}}，适配层成功回填原始 URL 并提取完整 Markdown 正文，与单元测试契约完全吻合。

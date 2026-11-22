@@ -11,7 +11,7 @@
 | 网页 | React + TypeScript + Vite，构建为静态页面。 |
 | 服务端 | FastAPI，提供 API 与构建后的网页。 |
 | 模型接入 | 用户配置 `base_url + api_key + model`，采用 OpenAI 兼容 Chat Completions；验证时使用 DeepSeek。 |
-| 网页搜索 | Exa → Tavily → AnySearch 顺序回退；Exa 无 Key 时使用官方匿名托管 MCP。 |
+| 网页搜索 | Exa → DeepSeek → Tavily → AnySearch 顺序回退；Exa 无 Key 时使用官方匿名托管 MCP。 |
 | Agent | Python 动作执行循环，LLM 动态选择查询、生成和修复，独立模型审核反馈；应用负责引用校验、状态、超时和调用上限。 |
 | 任务执行 | 进程内一次运行一个规划任务，其余排队；任务状态持久化，异常中断后由用户重试。 |
 | 业务存储 | SQLite 保存偏好、行程、任务与资料元数据；原始资料存于持久化目录。 |
@@ -87,7 +87,7 @@ Q32 已明确为每份安装供单人使用，之前的多人服务容量目标�
 | Q43 | 基础 PDF 文字提取与公开网页正文提取；失败时提示粘贴文本或上传文件。 |
 | Q44 | 停服后手动导出完整数据卷，按说明恢复，`.env` 单独保管。 |
 | 模型选择补充 | DeepSeek 仅用于验证，实际使用由用户自行填写兼容服务的基址、密钥和模型名称。 |
-| 搜索回退补充 | Exa、Tavily、AnySearch 依次尝试，成功后停止；按 Key 配置决定官方认证或匿名入口，尊重服务限流。 |
+| 搜索回退补充 | Exa、DeepSeek、Tavily、AnySearch 依次尝试，成功后停止；按 Key 配置决定官方认证或匿名入口，尊重服务限流。 |
 
 ## 简化方案
 
@@ -109,7 +109,7 @@ Q32 已明确为每份安装供单人使用，之前的多人服务容量目标�
 
 ## 后续选型方法
 
-模型验证使用 DeepSeek，实际使用支持用户配置兼容服务；网页搜索采用 Exa → Tavily → AnySearch 回退。免费量与付费 Key 形式见[搜索服务比较](search-services.md)，高德与天气等能力见[旅行 API 方案](travel-apis.md)，回退状态、MCP 匿名入口和配置见[外部服务接入方案](service-integration.md)。
+模型验证使用 DeepSeek，实际使用支持用户配置兼容服务；网页搜索采用 Exa → DeepSeek → Tavily → AnySearch 回退。免费量与付费 Key 形式见[搜索服务比较](search-services.md)，高德与天气等能力见[旅行 API 方案](travel-apis.md)，回退状态、MCP 匿名入口和配置见[外部服务接入方案](service-integration.md)。
 
 服务接入依据当前官方文档和可运行样本推进，记录接口能力、来源字段及实际账号配置结果。
 

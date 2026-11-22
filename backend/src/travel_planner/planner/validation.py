@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 
 from travel_planner.planner.models import (
@@ -6,6 +7,21 @@ from travel_planner.planner.models import (
     ValidationIssue,
     ValidationResult,
 )
+from travel_planner.providers.models import Place
+
+ARRIVAL_BUFFER_MINUTES = 60
+DEPARTURE_BUFFER_MINUTES = 90
+HUB_TYPES = ("火车站", "高铁站", "铁路客运站", "机场", "航站楼")
+
+
+def _is_transport_hub(place: Place) -> bool:
+    category = place.category or ""
+    return (
+        (place.category_code or "").startswith(("1501", "1502"))
+        or any(part.strip().endswith(HUB_TYPES) for part in re.split(r"[;|/]", category))
+        or place.name.endswith(HUB_TYPES)
+        or ("交通设施服务" in category and place.name.endswith(("站", "交通枢纽")))
+    )
 
 
 def validate_plan(
@@ -35,9 +51,9 @@ def validate_plan(
                 date.fromisoformat(constraint["on_date"]) - day.on_date
             ).days * 1440 + constraint["minute"]
             if constraint["kind"] == "arrival":
-                available_start = max(available_start, relative)
+                available_start = max(available_start, relative + ARRIVAL_BUFFER_MINUTES)
             elif constraint["kind"] == "departure":
-                available_end = min(available_end, relative)
+                available_end = min(available_end, relative - DEPARTURE_BUFFER_MINUTES)
         expected_periods = {
             period
             for period, start, end in (
@@ -45,7 +61,7 @@ def validate_plan(
                 ("noon", 720, 1020),
                 ("evening", 1020, 1320),
             )
-            if min(end, available_end) - max(start, available_start) >= 60
+            if min(end, available_end) - max(start, available_start) > 60
         }
         if not expected_periods <= {activity.period for activity in activities}:
             issue("day_coverage", "unknown", f"{day.on_date} 未覆盖完整早中晚安排")
@@ -76,7 +92,8 @@ def validate_plan(
                 and fact.on_date == day.on_date
                 and fact.kind == "opening_hours"
             ]
-            if activity.kind == "meal" and activity.flexible_meal:
+            flexible_meal = activity.kind == "meal" and activity.flexible_meal
+            if flexible_meal:
                 hours = []
             supported = [fact for fact in hours if fact.status == "supported"]
             conflicts = [fact for fact in hours if fact.status == "conflict"]
@@ -114,7 +131,9 @@ def validate_plan(
                         [activity.id],
                         [fact.id],
                     )
-            elif not (activity.kind == "meal" and activity.flexible_meal):
+            elif not flexible_meal and not (
+                activity.kind == "leisure" and _is_transport_hub(place)
+            ):
                 issue(
                     "opening_hours",
                     "unknown",
@@ -131,7 +150,7 @@ def validate_plan(
                 and fact.reservation_required
                 and fact.status in {"supported", "estimated"}
             ]
-            if reservations and not (activity.kind == "meal" and activity.flexible_meal):
+            if reservations and not flexible_meal:
                 confirmed = any(
                     item["kind"] == "reservation"
                     and item["on_date"] == day.on_date.isoformat()

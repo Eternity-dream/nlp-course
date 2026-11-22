@@ -49,20 +49,20 @@ def test_real_http_background_planning_survives_browser_disconnect_and_recovers_
     def start(block=False):
         process = context.Process(target=serve, args=(cfg, port, block))
         process.start()
-        with httpx.Client(base_url=base, timeout=2) as client:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as client:
             poll(client, "/api/health", lambda body: body["status"] == "ok")
         return process
 
     process = start()
     try:
-        with httpx.Client(base_url=base, timeout=2) as browser:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as browser:
             trip = browser.post("/api/trips", json=TRIP).json()
             job = browser.post(
                 f"/api/trips/{trip['id']}/jobs",
                 json={"expected_revision": 1, "idempotency_key": "first"},
             ).json()
         # 提交后断开客户端，后台任务仍能完成。
-        with httpx.Client(base_url=base, timeout=2) as reopened:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as reopened:
             poll(reopened, "/api/jobs/" + job["id"], lambda body: body["status"] == "succeeded")
             original = reopened.get(f"/api/trips/{trip['id']}/itinerary").json()
             edit = reopened.patch(
@@ -76,7 +76,7 @@ def test_real_http_background_planning_survives_browser_disconnect_and_recovers_
                     ],
                 },
             ).json()
-        with httpx.Client(base_url=base, timeout=2) as reopened:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as reopened:
             poll(reopened, "/api/jobs/" + edit["id"], lambda body: body["status"] == "succeeded")
             updated = reopened.get(f"/api/trips/{trip['id']}/itinerary").json()
             assert updated["revision"] == 2
@@ -90,7 +90,7 @@ def test_real_http_background_planning_survives_browser_disconnect_and_recovers_
             process.join(3)
     process = start(block="extract_facts")
     try:
-        with httpx.Client(base_url=base, timeout=2) as client:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as client:
             running = client.patch(
                 f"/api/trips/{trip['id']}/itinerary",
                 json={
@@ -116,7 +116,7 @@ def test_real_http_background_planning_survives_browser_disconnect_and_recovers_
             process.join(3)
     process = start()
     try:
-        with httpx.Client(base_url=base, timeout=2) as client:
+        with httpx.Client(base_url=base, timeout=2, trust_env=False) as client:
             for stopped in [running, queued]:
                 assert client.get("/api/jobs/" + stopped["id"]).json()["status"] == "interrupted"
             assert client.get(f"/api/trips/{trip['id']}/itinerary").json() == original

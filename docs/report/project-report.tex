@@ -1,0 +1,200 @@
+\documentclass[a4paper,11pt,UTF8]{ctexart}
+
+\usepackage[margin=2.4cm,top=2.6cm,bottom=2.5cm,headheight=24pt]{geometry}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{tikz}
+\usepackage{fancyhdr}
+\usepackage[nobottomtitles*]{titlesec}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+\tcbuselibrary{skins,breakable}
+\sloppy
+\setlength{\fboxsep}{1.5pt}
+\setlength{\fboxrule}{0.5pt}
+
+% ---------------- 字体与基础排版 ----------------
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold},ItalicFont={AR PL KaitiM GB}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+\setmainfont{Noto Serif CJK SC}
+\setsansfont{Noto Sans CJK SC}
+\setmonofont[Scale=0.88]{JetBrains Maple Mono}
+
+\linespread{1.32}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{2em}
+
+% ---------------- 色彩系统（与前端视觉呼应） ----------------
+\definecolor{BrandBlue}{HTML}{1E3A8A}
+\definecolor{BrandSoft}{HTML}{EFF6FF}
+\definecolor{InkDark}{HTML}{0F172A}
+\definecolor{InkMuted}{HTML}{475569}
+\definecolor{BorderLight}{HTML}{CBD5E1}
+\definecolor{PanelBg}{HTML}{F8FAFC}
+\definecolor{AccentGreen}{HTML}{0F766E}
+\definecolor{AccentAmber}{HTML}{B45309}
+
+% ---------------- 超链接与书签 ----------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=BrandBlue,
+  urlcolor=BrandBlue,
+  citecolor=BrandBlue,
+  pdftitle={拾程：本地优先的旅行规划 Agent 系统设计与验收报告},
+  pdfauthor={Travel Planner Project Team}
+}
+
+% ---------------- 标题与页眉页脚 ----------------
+\titleformat{\section}
+  {\Large\sffamily\bfseries\color{BrandBlue}}
+  {第\,\thesection\,章}{0.8em}{}
+  [\vspace{-0.35em}\color{BorderLight}\titlerule]
+\titlespacing*{\section}{0pt}{1.6em}{0.9em}
+
+\titleformat{\subsection}
+  {\large\sffamily\bfseries\color{InkDark}}
+  {\thesubsection}{0.7em}{}
+\titlespacing*{\subsection}{0pt}{1.1em}{0.45em}
+
+\titleformat{\subsubsection}
+  {\normalsize\sffamily\bfseries\color{InkMuted}}
+  {\thesubsubsection}{0.6em}{}
+\titlespacing*{\subsubsection}{0pt}{0.8em}{0.3em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{InkMuted}拾程 · 本地优先的旅行规划 Agent 项目完整报告}
+\fancyhead[R]{\small\sffamily\color{InkMuted}\leftmark}
+\fancyfoot[C]{\small\sffamily\color{InkMuted}—\,\thepage\,—}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{BorderLight}\leaders\hrule height \headrulewidth\hfill}}
+
+% ---------------- 列表、图表标题与自定义框 ----------------
+\setlist[itemize]{itemsep=0.25em,parsep=0pt,topsep=0.35em,leftmargin=1.8em}
+\setlist[enumerate]{itemsep=0.25em,parsep=0pt,topsep=0.35em,leftmargin=1.8em}
+
+\captionsetup{
+  font={small,sf},
+  labelfont={bf,color=BrandBlue},
+  textfont={color=InkMuted},
+  skip=6pt
+}
+
+\newtcolorbox{summarybox}[1]{
+  enhanced,
+  breakable,
+  colback=BrandSoft,
+  colframe=BrandBlue,
+  colbacktitle=BrandBlue,
+  coltitle=white,
+  boxrule=0.6pt,
+  leftrule=3pt,
+  arc=3pt,
+  top=8pt,bottom=8pt,left=10pt,right=10pt,
+  toptitle=4pt,bottomtitle=4pt,
+  fonttitle=\sffamily\bfseries,
+  title={#1}
+}
+
+\newtcolorbox{designnote}[1]{
+  enhanced,
+  breakable,
+  colback=PanelBg,
+  colframe=BorderLight,
+  colbacktitle=PanelBg,
+  coltitle=BrandBlue,
+  boxrule=0.6pt,
+  leftrule=2.5pt,
+  arc=2pt,
+  top=7pt,bottom=7pt,left=10pt,right=10pt,
+  toptitle=4pt,bottomtitle=2pt,
+  fonttitle=\sffamily\bfseries,
+  title={#1}
+}
+
+\newcommand{\screenframe}[2][width=0.95\textwidth]{%
+  \fcolorbox{BorderLight}{white}{%
+    \includegraphics[#1]{#2}%
+  }%
+}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\begin{document}
+
+% ==================== 封面页 ====================
+\begin{titlepage}
+  \thispagestyle{empty}
+  \vspace*{0.4cm}
+  \noindent{\sffamily\small\color{BrandBlue}\bfseries PROJECT TECHNICAL REPORT \quad · \quad 2026 年 11 月}\\[0.45cm]
+  \noindent{\Huge\sffamily\bfseries\color{InkDark} 拾程：本地优先的旅行规划 Agent}\\[0.35cm]
+  \noindent{\Large\sffamily\color{InkMuted} 系统架构、动态规划引擎、可溯源事实核验与全链路验收报告}\\[0.55cm]
+  \noindent{\color{BrandBlue}\rule{\textwidth}{1.5pt}}\\[0.65cm]
+
+  \begin{tcolorbox}[
+    enhanced,
+    colback=PanelBg,
+    colframe=BorderLight,
+    boxrule=0.7pt,
+    arc=4pt,
+    top=10pt,bottom=10pt,left=12pt,right=12pt
+  ]
+    \sffamily
+    \textbf{\color{BrandBlue}核心摘要}\\[0.35em]
+    \normalfont
+    本项目面向中文自由行用户，针对目的地与日期已确定的 3--7 天中国大陆单城旅行，设计并实现了一套\textbf{单人本机部署、动态自主规划、事实可溯源、支持定点局部编辑}的旅行规划系统。系统以 React + TypeScript + Vite 构建响应式界面，以 FastAPI + Python 3.13 与 SQLite（FTS5，Schema v6）作为核心后端，通过单一 Docker Compose 容器交付；规划侧结合高德地图真实 POI 与路线、本地中文知识库检索以及 \texttt{Exa $\rightarrow$ DeepSeek $\rightarrow$ Tavily $\rightarrow$ AnySearch} 四家搜索回退链路，将行程生成、分离式事实核验与独立模型审核有机闭环。
+  \end{tcolorbox}
+
+  \vspace{0.55cm}
+
+  \noindent\renewcommand{\arraystretch}{1.22}%
+  \begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash\sffamily\bfseries\color{InkMuted}}p{3.4cm} Y @{}}
+    \toprule
+    软件版本与数据库 & 首版工程基线（\texttt{0.1.0}），SQLite Schema v6，单进程 Uvicorn + 静态前端交付 \\
+    外部服务适配 & OpenAI 兼容模型（DeepSeek 验证）；四家搜索回退；高德 Web 服务（地点与三种路线） \\
+    自动化测试基线 & 后端 349 项 \texttt{pytest} 通过；前端 60 项 \texttt{Vitest} + TypeScript + Vite 构建通过 \\
+    浏览器与无障碍 & Playwright 28 组全页面流程通过；38 个页面/弹窗状态 axe-core WCAG A/AA 0 违规 \\
+    真实场景验收 & 西安五日游规划与局部编辑（0 硬冲突）、个人偏好 A/B/C 对照、五类复杂资料抽查 \\
+    容量与容器交付 & 100 份中文资料容量压测与中断恢复通过；Linux Docker 构建、容器替换与空卷恢复通过 \\
+    \bottomrule
+  \end{tabularx}
+
+  \vfill
+  \begin{flushright}
+    \sffamily\small\color{InkMuted}
+    报告编制日期：2026 年 11 月 22 日\\
+    对应仓库状态：主分支（含 Phase 1--4 全部实现与实测证据）
+  \end{flushright}
+\end{titlepage}
+
+% ==================== 目录 ====================
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+
+% ==================== 正文 ====================
+\pagenumbering{arabic}
+\input{sections/01-overview}
+\input{sections/02-architecture}
+\input{sections/03-planning-engine}
+\input{sections/04-facts-search}
+\input{sections/05-knowledge-preferences}
+\input{sections/06-ui-showcase}
+\input{sections/07-evaluation}
+\input{sections/08-conclusion}
+
+\end{document}

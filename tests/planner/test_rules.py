@@ -379,20 +379,72 @@ def test_numeric_substrings_do_not_support_wrong_fact_values(rule_data):
     )
 
 
-def test_partial_arrival_and_departure_days_do_not_require_full_day(rule_data):
-    from travel_planner.planner.validation import validate_plan
-
-    request, draft, places, facts_and_routes = rule_data
+@pytest.mark.parametrize(
+    "arrival,departure,uncovered_days",
+    [(840, 900, 0), (600, 1080, 0), (599, 1171, 2)],
+    ids=["afternoon-arrival-and-departure", "10h-arrival-18h-departure", "61-minutes-available"],
+)
+def test_partial_arrival_and_departure_days_do_not_require_full_day(
+    rule_data, arrival, departure, uncovered_days
+):
+    request, draft, places, transport = rule_data
     request["time_constraints"] = [
-        {"kind": "arrival", "on_date": "2026-12-01", "minute": 840},
-        {"kind": "departure", "on_date": "2026-12-03", "minute": 900},
+        {"kind": "arrival", "on_date": "2026-12-01", "minute": arrival},
+        {"kind": "departure", "on_date": "2026-12-03", "minute": departure},
     ]
     draft.days[0].activities = draft.days[0].activities[1:]
-    draft.days[0].activities[0].start_minute = 840
-    draft.days[0].activities[0].end_minute = 900
+    meal = draft.days[0].activities[0]
+    meal.start_minute = max(meal.start_minute, arrival)
+    meal.end_minute = meal.start_minute + 60
     draft.days[-1].activities = draft.days[-1].activities[:2]
-    result = validate_plan(request, draft, places, [], facts_and_routes)
-    assert not any(item.rule == "day_coverage" for item in result.issues)
+    result = validate_plan(request, draft, places, [], transport)
+    assert sum(item.rule == "day_coverage" for item in result.issues) == uncovered_days
+
+
+@pytest.mark.parametrize(
+    "kind,name,category,code,requires_hours",
+    [
+        ("leisure", "北京南站", "交通设施服务;火车站", None, False),
+        ("leisure", "北京站", "交通设施服务", None, False),
+        ("leisure", "北京西站", None, "150200", False),
+        ("leisure", "大兴航站区", None, "150100", False),
+        ("leisure", "首都国际机场", None, None, False),
+        ("leisure", "雄安高铁站", None, None, False),
+        ("leisure", "火车站历史博物馆", "科教文化服务;火车站历史博物馆", None, True),
+        ("leisure", "机场公园", "风景名胜;公园", None, True),
+        ("leisure", "前门大街", None, None, True),
+        ("sightseeing", "北京站", "交通设施服务;火车站", None, True),
+        ("meal", "站内餐馆", "交通设施服务;火车站", "150200", True),
+    ],
+)
+def test_unknown_opening_hours_by_activity_and_place(
+    rule_data, kind, name, category, code, requires_hours
+):
+    request, draft, places, transport = rule_data
+    activity = draft.days[0].activities[0]
+    activity.kind = kind
+    place = places[activity.place_id]
+    place.name, place.category, place.category_code = name, category, code
+    result = validate_plan(request, draft, places, [], transport)
+    unknown_hours = any(
+        issue.rule == "opening_hours"
+        and issue.severity == "unknown"
+        and activity.id in issue.object_ids
+        for issue in result.issues
+    )
+    assert unknown_hours == requires_hours
+
+
+def test_confirmed_station_closure_applies_to_leisure_activity(rule_data):
+    request, draft, places, transport = rule_data
+    activity = draft.days[0].activities[0]
+    activity.kind = "leisure"
+    places[activity.place_id].category_code = "150200"
+    result = validate_plan(request, draft, places, [evidence(closed=True, windows=[])], transport)
+    assert any(
+        issue.rule == "closed" and issue.severity == "conflict" and activity.id in issue.object_ids
+        for issue in result.issues
+    )
 
 
 def test_flexible_meal_does_not_use_anchor_opening_hours(rule_data):

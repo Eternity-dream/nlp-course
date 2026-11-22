@@ -11,6 +11,7 @@ from travel_planner.planner.models import ConstraintReview, Itinerary, PlanDraft
 from travel_planner.planner.operations import apply_operations
 from travel_planner.planner.review import apply_review, review_itinerary
 from travel_planner.planner.validation import validate_plan
+from travel_planner.providers.errors import ProviderError
 from travel_planner.storage.repository import new_id
 
 
@@ -172,16 +173,19 @@ class ItineraryEditor:
         await self.stage(job, "validation")
         validation = validate_plan(request, draft, places, facts, transport)
         await self.stage(job, "review")
-        quality = await review_itinerary(
-            self.services,
-            request,
-            draft,
-            places,
-            facts,
-            transport,
-            validation,
-            affected_dates=sorted(affected),
-        )
+        try:
+            quality = await review_itinerary(
+                self.services,
+                request,
+                draft,
+                places,
+                facts,
+                transport,
+                validation,
+                affected_dates=sorted(affected),
+            )
+        except ProviderError:
+            quality = None
         apply_review(validation, quality)
         await self.stage(job, "saving")
         all_sources = {source.id: source for source in base.sources}
@@ -203,7 +207,7 @@ class ItineraryEditor:
             "planning_context": {
                 **base.planning_context,
                 "edit_research": research.model_dump(mode="json"),
-                "edit_review": quality.model_dump(mode="json"),
+                "edit_review": quality.model_dump(mode="json") if quality is not None else None,
             },
         }
 

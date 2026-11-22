@@ -29,10 +29,14 @@ def test_explicit_checks_call_selected_service_record_redacted_result_and_persis
     def handle(request):
         calls.append(request)
         if request.url.host == "model.example.com":
+            assert request.headers["authorization"] == "Bearer model-secret"
             return httpx.Response(200, json=completion('{"ok":true}'))
         if request.url.host == "api.exa.ai":
+            return httpx.Response(503)
+        if request.url.host == "api.deepseek.com":
+            assert request.headers["authorization"] == "Bearer deepseek-secret"
             assert json.loads(request.content)["query"].startswith("杭州 ")
-            return httpx.Response(200, json=samples["search"]["exa"])
+            return httpx.Response(200, json=samples["search"]["deepseek"])
         assert request.url.params["region"] == "杭州"
         return httpx.Response(200, json=samples["amap"])
 
@@ -47,13 +51,13 @@ def test_explicit_checks_call_selected_service_record_redacted_result_and_persis
             assert result.status_code == 200
             assert result.json()["success"] is True
             assert "secret" not in result.text
-        assert len(calls) == 3
+        assert len(calls) == 4
         records = client.get("/api/config/checks").json()
         assert len(records) == 3
         assert records[0]["id"]
     with TestClient(create_app(config, provider_transport=httpx.MockTransport(handle))) as client:
         assert client.get("/api/config/checks").json() == records
-        assert len(calls) == 3
+        assert len(calls) == 4
 
 
 def test_check_failure_saved_and_generated_credentials_not_leaked(settings):

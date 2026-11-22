@@ -1,13 +1,13 @@
 # 外部服务接入方案
 
-状态：兼容模型、三家搜索回退与高德适配器已实现；DeepSeek／高德／Exa 已完成真实西安三天规划、编辑和恢复。来源事实覆盖与其他供应商账号继续验收，详见[实际记录](validation/2026-11-15-backend.md)。
+状态：兼容模型、四家搜索回退与高德适配器已实现；DeepSeek／高德／Exa 已完成真实西安三天规划、编辑和恢复。来源事实覆盖与其他供应商账号继续验收，详见[实际记录](validation/2026-11-15-backend.md)。
 
 ## 服务职责
 
 | 职责 | 方案 | 当前状态 |
 | --- | --- | --- |
 | 行程理解与生成 | 用户配置 `base_url + api_key + model`，应用调用 OpenAI 兼容 Chat Completions。 | DeepSeek `deepseek-flash` 实际条件补充、事实提取、规划与编辑核验通过调用；样例草案保留待确认事实。 |
-| 网页搜索与正文 | Exa → Tavily → AnySearch 顺序回退，通过统一 search/fetch 适配接入。 | 适配器、共享冷却和回退测试通过；Exa 匿名 MCP 真实搜索与正文通过。 |
+| 网页搜索与正文 | Exa → DeepSeek → Tavily → AnySearch 顺序回退，通过统一 search/fetch 适配接入。 | 适配器、共享冷却和回退测试通过；Exa 匿名 MCP 真实搜索与正文通过。 |
 | 地点与当地交通 | 高德 Web 服务，按用户选择的城市查询地点与路线。 | 地点和三种路线适配及固定响应验证完成，西安地点与路线实际调用成功；已验证并修复账号 QPS 限流处理。 |
 | 天气 | 高德短期天气或和风 7–10 天预报。 | 可选增强，详见旅行 API 方案。 |
 
@@ -38,12 +38,21 @@ LLM_MODEL=deepseek-flash
 ## 搜索与生成流程
 
 1. 从本次要求提取目的地、地点、日期及需要核实的事实，构造公共查询词。
-2. 按 Exa → Tavily → AnySearch 的顺序尝试可用服务，返回可用来源后停止切换，记录提供方与查询时间。
+2. 按 Exa → DeepSeek → Tavily → AnySearch 的顺序尝试可用服务，返回可用来源后停止切换，记录提供方与查询时间。
 3. 对关键事实取得来源正文，保存抓取时间、可用的发布时间与适用日期。优先官方当前页面和公告。
 4. 将证据、地点数据、本次要求和本地检索的相关片段交给已配置模型生成行程。
 5. 模型输出 `source_ids` 引用应用已有证据；程序校验引用存在、事实对应、日期和费用等约束，再保存草案。
 
-搜索适配器输出统一结构，具体供应商自行映射鉴权、字段与错误码。一次查询串行尝试，每个服务最多尝试一次；已有可用来源即返回，避免反复调用或无限回退。DeepSeek 验证不依赖其专有联网工具，其他模型可复用相同搜索结果。
+搜索适配器输出统一结构，具体供应商自行映射鉴权、字段与错误码。一次查询串行尝试，每个服务最多尝试一次。已有可用来源即返回，供当前配置的模型使用。
+
+## DeepSeek Search & Fetch
+
+使用独立的 `DEEPSEEK_API_KEY`，两个端点均发送 `Authorization: Bearer <key>`。切换模型地址、模型名或 `LLM_API_KEY` 时，搜索配置继续生效。
+
+- `POST https://api.deepseek.com/v1/tools/search` 接受 1–128 个 Unicode 字符的 `query`。应用去除首尾空白并截取前 128 个字符，以 `count` 指定条数，设置 `need_content=true`。从 `results` 读取来源，优先使用 `snippet`，缺失时取 `summary`。只有取得正文才记录抓取时间。
+- `POST https://api.deepseek.com/v1/tools/fetch` 接受单个 `url`，返回含 `title` 和 `content` 的对象。应用将正文关联到请求的 URL，正文为空时继续尝试下一家。
+
+Search 和 Fetch 各按每千次成功非空请求 5 元或 0.75 美元计费。HTTP 200 的搜索须有至少一条结果，抓取须有正文。[中文计费说明](https://api-docs.deepseek.com/zh-cn/guides/search/) · [英文计费说明](https://api-docs.deepseek.com/guides/search/)
 
 ## Exa 无 Key 模式
 
@@ -57,14 +66,14 @@ Exa 官方确认托管 MCP `https://mcp.exa.ai/mcp` 可匿名使用搜索与正�
 
 | 情况 | 行为 |
 | --- | --- |
-| 未配置 Tavily Key | 跳过 Tavily，记录未配置状态。 |
+| 未配置 DeepSeek 或 Tavily 的 Key | 对应服务标记为 `disabled` 并跳过。 |
 | Exa 或 AnySearch 未配置 Key | 若允许匿名，使用对应官方匿名入口；否则跳过。AnySearch 匿名请求不发送 Authorization 标头。 |
 | 429 限流 | 记录冷却时间并立即尝试下一家；同一任务后续查询在冷却期跳过该服务，尊重 `Retry-After` 或重置时间。 |
 | 402 额度耗尽、401/403 鉴权或权限错误 | 当前任务禁用该服务并记录原因，尝试下一家；由用户补充额度或修改配置。 |
 | 连接失败、超时、5xx 或无法解析的提供方响应 | 记录本次错误并尝试下一家。 |
 | 空结果或没有有效来源 URL | 尝试下一家；缺乏事实证据不视为已核实。 |
 | 400/422 等固定请求参数错误 | 提示具体参数问题，停止该次请求，避免通过换服务掩盖调用错误。 |
-| 三家均不可用或无结果 | 返回汇总原因，受影响事实保留待核实，已有有效证据继续保留。 |
+| 四家均不可用或无结果 | 返回汇总原因，受影响事实保留待核实，已有有效证据继续保留。 |
 
 MCP 的错误可能位于 JSON-RPC `error` 或工具结果 `isError=true`，即使 HTTP 为 200 也要识别并归类。来源记录保留实际成功的服务，错误记录不包含密钥。成功取得标题和 URL 只表示检索成功，营业时间与票价仍需正文支持。
 
@@ -72,11 +81,11 @@ MCP 的错误可能位于 JSON-RPC `error` 或工具结果 `isError=true`，即�
 
 429 冷却状态在执行器内按提供方和鉴权模式共享，适用于所有排队任务。服务未返回可用重置信息时，该任务剩余步骤跳过它，并给出本地冷却起点；下一任务再按冷却状态决定是否尝试。具体记录格式和任务生命周期见[首版实施设计](implementation.md)。
 
-正文优先复用已返回内容或现有本地网页提取；仍未取得正文时，对同一 URL 使用可用的 Exa → Tavily → AnySearch 正文能力，沿用冷却和错误状态。协议能力来自对应 REST 文档或 MCP `tools/list`。
+正文优先复用已返回内容或现有本地网页提取；仍未取得正文时，对同一 URL 使用可用的 Exa → DeepSeek → Tavily → AnySearch 正文能力，沿用冷却和错误状态。协议能力来自对应 REST 文档或 MCP `tools/list`。
 
 ## 配置示例
 
-以下配置已提供于根目录 `.env.example`，后端支持读取、脱敏配置检查与显式连通性测试。三家服务独立填写 Key，匿名入口由一个开关控制，默认顺序可在配置中调整。
+以下配置已提供于根目录 `.env.example`，后端支持读取、脱敏配置检查与显式连通性测试。四家搜索服务独立填写 Key，匿名入口由一个开关控制，默认顺序可在配置中调整。
 
 ```dotenv
 LLM_BASE_URL=https://api.deepseek.com
@@ -85,9 +94,10 @@ LLM_MODEL=deepseek-flash
 LLM_JSON_MODE=false
 PROVIDER_TIMEOUT_SECONDS=30
 
-SEARCH_PROVIDERS=exa,tavily,anysearch
+SEARCH_PROVIDERS=exa,deepseek,tavily,anysearch
 SEARCH_ALLOW_ANONYMOUS=true
 EXA_API_KEY=
+DEEPSEEK_API_KEY=
 TAVILY_API_KEY=
 ANYSEARCH_API_KEY=
 AMAP_API_KEY=
@@ -109,10 +119,10 @@ AMAP_API_KEY=
 - 更换兼容基址与模型，验证核心流程不依赖 DeepSeek 专有参数。
 - 对搜索候选执行相同查询，比较官方来源、正文可读性、日期适用性与实际网络可达性。
 - 检查额度耗尽、无效 key、限流和正文抓取失败时的明确反馈。
-- 验证无 Exa Key 时通过匿名 MCP 搜索；遇限流按配置继续到 Tavily、AnySearch，正确处理 HTTP 200 内的 MCP 错误。
-- 验证 Exa 成功后不调用后续服务、缺少 Tavily Key 时跳过，以及全部失败时汇总原因。
+- 验证无 Exa Key 时通过匿名 MCP 搜索；遇限流按配置继续到 DeepSeek、Tavily、AnySearch，正确处理 HTTP 200 内的 MCP 错误。
+- 验证 Exa 成功后不调用后续服务、缺少 DeepSeek 或 Tavily Key 时跳过对应服务，以及全部失败时汇总原因。
 - 检查冷却期不重复访问被限流服务，带 Key 的服务失败后不改用匿名模式重试。
 - 验证高德地点和路线参数随目的地变化，并完成西安之外城市的案例。
 - 接入个人资料前核对所配置模型服务的数据处理要求。
 
-2026-11-15 已完成 Exa 匿名 MCP 初始化、工具发现、搜索和正文调用，并保存公开正文响应作为回归样本；实际 DeepSeek／高德／Exa 三天规划、编辑与恢复的执行范围和事实覆盖见[验收记录](validation/2026-11-15-backend.md)。其余账号调用、完整三家在线回退和 Windows 安装继续按计划验收。应用可通过 `POST /api/config/check` 主动调用所选服务，`GET /api/config/checks` 查看持久化的脱敏结果。
+2026-11-15 已完成 Exa 匿名 MCP 初始化、工具发现、搜索和正文调用，并保存公开正文响应作为回归样本；实际 DeepSeek／高德／Exa 三天规划、编辑与恢复的执行范围和事实覆盖见[验收记录](validation/2026-11-15-backend.md)。其余账号调用、完整四家在线回退和 Windows 安装继续按计划验收。应用可通过 `POST /api/config/check` 主动调用所选服务，`GET /api/config/checks` 查看持久化的脱敏结果。

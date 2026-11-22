@@ -96,7 +96,7 @@ export function ReferencePicker({ ids, onChange }: { ids: string[]; onChange: (i
           <span className="reference-name">{source.title}</span>{source.status !== 'ready' && <span>{labels[source.status]}</span>}
         </label>)}
         <Button type="button" onClick={() => setOpen(false)}>完成</Button>
-      </div> : <KnowledgeForm onBusyChange={setBusy} onCancel={() => setOpen(false)} onSuccess={(source) => {
+      </div> : open && <KnowledgeForm onBusyChange={setBusy} onCancel={() => setOpen(false)} onSuccess={(source) => {
         onChange([...new Set([...ids, source.id])]); setOpen(false);
       }} />}
     </dialog>, document.body)}

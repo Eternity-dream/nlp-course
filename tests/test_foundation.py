@@ -5,6 +5,7 @@ import pytest
 from conftest import wait_source
 from fastapi.testclient import TestClient
 from travel_planner.api.middleware import BodyLimitMiddleware
+from travel_planner.config import Settings
 from travel_planner.main import create_app
 from travel_planner.storage.database import Database
 from travel_planner.storage.instance_lock import instance_lock
@@ -14,12 +15,32 @@ def test_missing_config_is_readable_and_does_not_block_storage(client):
     status = client.get("/api/config/status").json()
     assert status["ready_for_planning"] is False
     assert set(status["missing"]) == {"LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL", "AMAP_API_KEY"}
-    assert status["search"][0]["auth_mode"] == "anonymous"
-    assert status["search"][0]["protocol"] == "mcp"
-    assert status["search"][1]["auth_mode"] == "disabled"
+    assert [(p["provider"], p["auth_mode"], p["protocol"]) for p in status["search"]] == [
+        ("exa", "anonymous", "mcp"),
+        ("deepseek", "disabled", "rest"),
+        ("tavily", "disabled", "rest"),
+        ("anysearch", "anonymous", "rest"),
+    ]
     assert status["connectivity_checked"] is False
     assert client.get("/api/health").json() == {"status": "ok", "schema_version": 6}
     assert client.get("/api/preferences").status_code == 200
+
+
+def test_deepseek_search_key_is_independent_of_llm_configuration(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "search-secret")
+    for host, model in [("api.deepseek.com", "deepseek-flash"), ("model.example.com", "other")]:
+        settings = Settings(
+            _env_file=None,
+            search_providers="deepseek",
+            llm_base_url=f"https://{host}",
+            llm_model=model,
+            llm_api_key=f"{model}-secret",
+        )
+        assert settings.deepseek_api_key.get_secret_value() == "search-secret"
+        assert settings.status()["search"] == [
+            {"provider": "deepseek", "auth_mode": "key", "configured": True, "protocol": "rest"}
+        ]
+        assert "secret" not in str(settings.status())
 
 
 def test_config_secrets_redacted_and_key_mode_fixed(settings):

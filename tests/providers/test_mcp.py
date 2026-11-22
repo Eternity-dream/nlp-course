@@ -139,14 +139,15 @@ async def test_mcp_200_errors_and_http429_fall_back_and_share_cooldown(settings,
             if kind == "http":
                 return httpx.Response(429, headers={"Retry-After": "120"})
             return server(request)
-        return httpx.Response(200, json=samples["search"]["tavily"])
+        assert request.url.host == "api.deepseek.com"
+        return httpx.Response(200, json=samples["search"]["deepseek"])
 
     client, _ = make_http(handle)
     async with client:
         config = configured(settings, exa_api_key="")
         engine = Services(config, client).search
         first = await engine.scope().search("西安", "票价")
-        assert first.sources[0].provider == "tavily"
+        assert first.sources[0].provider == "deepseek"
         assert first.attempts[0].error["code"] == "provider_rate_limited"
         assert first.attempts[0].retry_at
         assert "secret" not in first.model_dump_json()

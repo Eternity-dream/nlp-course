@@ -214,6 +214,17 @@ export function KnowledgePage() {
     }
   }
 
+  async function retryImport(id: string) {
+    setDetailLoading(true);
+    try {
+      await api.retryKnowledge(id);
+      await Promise.all([loadDetail(id), loadSources(true)]);
+    } catch (err) {
+      setDetailError(formatApiError(err));
+      setDetailLoading(false);
+    }
+  }
+
   if (initialLoading) return <Loading text="加载中" />;
 
   return (
@@ -265,6 +276,7 @@ export function KnowledgePage() {
           onClose={closeDetail}
           onDelete={() => handleDelete(detailId)}
           onRetry={() => loadDetail(detailId)}
+          onRetryImport={() => retryImport(detailId)}
         />
       ) : sources.length === 0 ? (
         <EmptyState
@@ -356,6 +368,7 @@ interface DetailProps {
   onClose: () => void;
   onDelete: () => void;
   onRetry: () => void;
+  onRetryImport: () => void;
 }
 
 function KnowledgeDetailCard({
@@ -368,6 +381,7 @@ function KnowledgeDetailCard({
   onClose,
   onDelete,
   onRetry,
+  onRetryImport,
 }: DetailProps) {
   const chunks = detail?.chunks ?? [];
   const shown = chunks.slice(0, visibleChunks);
@@ -458,6 +472,11 @@ function KnowledgeDetailCard({
               {detail.status === 'ready' && <span>{chunks.length} 段</span>}
             </div>
             {detail.error && <div className="knowledge-item-error">{detail.error.message}</div>}
+            {detail.status === 'failed' && (
+              <Button size="sm" variant="secondary" disabled={loading} onClick={onRetryImport}>
+                重新导入
+              </Button>
+            )}
 
             {detail.status === 'ready' && chunks.length === 0 && (
               <div className="knowledge-detail-empty">没有可显示的片段</div>
@@ -542,6 +561,7 @@ export function KnowledgeForm({ onSuccess, onCancel, onBusyChange }: KnowledgeFo
   const kinds: { value: typeof kind; label: string }[] = [
     { value: 'text', label: '粘贴文字' },
     { value: 'url', label: '添加链接' },
+    { value: 'bookmark', label: '收藏链接' },
     { value: 'file', label: '上传文件' },
   ];
 

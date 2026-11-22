@@ -45,10 +45,18 @@ SQLite 版本 5 增加 `planning_checkpoints`，按任务保存意图、公开�
 
 自动回归覆盖审核驱动补查与重新生成、未知引用拒绝、上限结果保留、检查点重试、自然语言时间原文引用、首尾非完整日和编辑范围。浏览器使用固定服务响应验证生成、补充、局部编辑、版本、响应式和无障碍。
 
-真实六天规划验收：
+西安五日真实 HTTP 验收使用两名成人、全程 3500 元的条件，默认日期为 2026-12-05 至 2026-12-09。首日 10:00 到西安北站，末日 18:00 由同站离开，住宿自理。先导入参观笔记，再以 `reference_ids` 关联到本次行程。
 
 ```sh
-uv run python scripts/accept_agent_live.py --output-dir backups/acceptance/agent-six-days --start-date 2026-12-05
+uv run python scripts/accept_agent_live.py --output-dir backups/acceptance/xian-five-days/planning
 ```
 
-使用独立数据目录，外部服务继承当前 HTTP／HTTPS 代理；记录请求、结果、动作、重复地点统计及备份。日期可通过参数更改。
+输出目录须为新目录。脚本在其中启动独立实例，外部请求继承当前代理，本机 HTTP 直连，供应商超时为 120 秒。验收从配置状态接口核对 Exa 匿名 MCP、DeepSeek 独立密钥 REST、Tavily 禁用和 AnySearch 匿名 REST 的顺序，并分别触发模型、地图和搜索连通性检查。日期可通过 `--start-date` 更改。
+
+脚本记录五日日程、介绍、自由用餐、重复地点、事实状态、搜索尝试和全部规则问题。局部编辑将第二天的一项活动缩短 15 分钟，逐项复算费用，比较其余日期的活动、路线、证据及历史版本。停服后执行校验、备份和异目录恢复，再校验并通过 HTTP 读回两个版本。
+
+长期偏好可用同一独立实例中的两次三日规划做对照。A 组仅提供抵离与住宿条件，B 组增加明确的夜游要求。脚本保留模型意图、实际开始时间、晚间地点、步行耗时和介绍正文，并检查偏好版本冲突、主动更新及重启后读回。
+
+```sh
+uv run python scripts/accept_preferences_live.py --output-dir backups/acceptance/preferences-live
+```

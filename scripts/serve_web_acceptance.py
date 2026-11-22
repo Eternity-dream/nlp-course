@@ -29,12 +29,17 @@ if __name__ == "__main__":
         llm_model="",
         amap_api_key="",
         exa_api_key="",
+        deepseek_api_key="",
         tavily_api_key="",
         anysearch_api_key="",
         search_allow_anonymous=False,
-        search_providers="exa",
     )
     if not args.missing_config:
-        settings = config(settings)
+        settings = config(
+            settings,
+            deepseek_api_key="deepseek-acceptance-key",
+            search_allow_anonymous=True,
+            search_providers=settings.search_providers,
+        )
     app = create_app(settings, provider_transport=httpx.MockTransport(TravelServices()))
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False)
