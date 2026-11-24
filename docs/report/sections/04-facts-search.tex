@@ -42,7 +42,3 @@
   \item \textbf{跨任务共享冷却与故障隔离}：遇 \texttt{429} 限流立即记录 \texttt{Retry-After} 或重置时间并在整个执行器内按 \texttt{(provider, auth\_mode)} 共享冷却期，后续排队任务自动跳过；遇 \texttt{401/403} 鉴权失败或 \texttt{402} 余额不足则在当前任务内禁用该提供方，绝不将带 Key 失败偷偷回退到同服务的匿名模式。
   \item \textbf{提供方错误与单页错误分离}：单个目标网页返回空正文或拒绝抓取被精确归类为 \texttt{source\_unavailable}，仅影响该 URL 回退，不会误伤整家搜索服务。
 \end{itemize}
-
-\subsection{DeepSeek Search 与 Fetch 协议实测}
-
-在将 DeepSeek 接入 Exa 与 Tavily 之间后，我们使用独立 \texttt{DEEPSEEK\_API\_KEY} 对真实线上接口执行了最小端到端探针（查询“西安 兵马俑 开放时间”，\texttt{count=2}，\texttt{need\_content=true}）。实测 \texttt{POST /v1/tools/search} 返回 HTTP 200，顶层为 \texttt{results}，每项完整包含 \texttt{title}、\texttt{url}、\texttt{snippet}、\texttt{summary}、\texttt{content}、\texttt{date} 及相关性元字段；随后对首条链接执行 \texttt{POST /v1/tools/fetch} 返回 HTTP 200 及 \texttt{\{title, content\}}，适配层成功回填原始 URL 并提取完整 Markdown 正文，与单元测试契约完全吻合。

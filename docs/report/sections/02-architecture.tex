@@ -50,7 +50,7 @@
 
 \subsection{核心技术选型与架构决策}
 
-每一项技术选型都服务于“低维护成本、高可验证性、零隐藏黑盒”的工程目标：
+每一项技术选型都服务于“低维护成本、事实可追溯、无隐藏黑盒”的工程目标：
 
 \begin{table}[H]
   \centering
@@ -64,7 +64,7 @@
     后端服务 & FastAPI + Pydantic v2 + \texttt{uv} & 原生异步支持外部 HTTP 并发/超时控制，Pydantic 严格校验 LLM 结构化输出，\texttt{uv.lock} 锁定可复现依赖。 \\
     持久化与检索 & SQLite (WAL) + FTS5 + \texttt{jieba} & 单文件事务一致、免独立数据库运维；本机中文分词建立倒排索引，避免额外维护向量服务与嵌入模型（ADR-0003）。 \\
     任务与并发 & 进程内串行执行器 + SQLite 状态机 & 一次执行一个规划任务、其余排队；浏览器关闭后继续运行，进程中断重启自动将未完任务标记 \texttt{interrupted} 并允许从检查点重试。 \\
-    打包交付 & 多阶段 Dockerfile + Docker Compose & Node.js 24 阶段构建网页、Python 3.13 运行态剔除源码与测试依赖，以非 root 用户运行并配置原生健康检查。 \\
+    打包交付 & 多阶段 Dockerfile + Docker Compose & Node.js 24 阶段构建网页、Python 3.13 运行态仅保留最小运行依赖，以非 root 用户运行并配置原生健康检查。 \\
     \bottomrule
   \end{tabularx}
 \end{table}

@@ -5,8 +5,7 @@
 面向中文自由行用户，针对目的地与日期已确定的 **3–7 天中国大陆单城旅行**，结合你的个人参考资料、长期旅行习惯与实时公开信息，生成结构化的按天安排。单人本机部署，所有笔记、偏好与历史版本都留在你自己的设备里。
 
 - **技术底座**：React 18 + TypeScript + Vite · FastAPI + Python 3.13 · SQLite (FTS5, Schema v6) · Docker Compose 单容器
-- **当前验证基线**：后端 349 项测试通过 · 前端 60 项测试通过 · Playwright 28 组全页面流程（38 个状态 WCAG A/AA 0 违规）· 西安五日游与个人偏好对照实测 · Linux 容器替换与空卷恢复通过
-- **完整技术报告**：查阅根目录的 [项目完整报告（PDF）](project-report.pdf)（LaTeX 源码位于 [docs/report/project-report.tex](docs/report/project-report.tex)）
+- **技术报告**：查阅根目录的 [项目技术报告（PDF）](project-report.pdf)（LaTeX 源码位于 [docs/report/project-report.tex](docs/report/project-report.tex)）
 
 <p align="center">
   <img src="docs/report/images/01-trips-home.png" alt="行程列表首页" width="48%" />
@@ -99,7 +98,7 @@ docker compose up -d --no-build --wait app
 > docker compose up -d --no-build --wait app
 > ```
 
-#### 3. 验证并访问
+#### 3. 启动后访问
 
 ```sh
 curl http://127.0.0.1:8000/api/health
@@ -116,7 +115,7 @@ curl http://127.0.0.1:8000/api/health
 
 ### 方式二：`git clone` 本机运行（开发与调试）
 
-适合直接阅读源码、本地调试前后端或运行测试套件。前置依赖：**Python 3.13**、[**uv**](https://docs.astral.sh/uv/)、**Node.js 24 LTS**（含 `npm`）。
+适合直接阅读源码与本地调试前后端。前置依赖：**Python 3.13**、[**uv**](https://docs.astral.sh/uv/)、**Node.js 24 LTS**（含 `npm`）。
 
 ```sh
 git clone <你的仓库地址> travel-planner
@@ -148,14 +147,14 @@ npm --prefix web run dev -- --host 127.0.0.1
 
 | 服务类别 | 环境变量 | 说明 |
 | --- | --- | --- |
-| **大语言模型** | `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`、`LLM_JSON_MODE` | 支持任意 OpenAI 兼容 `/chat/completions` 接口；开发验证采用 DeepSeek (`deepseek-flash`)。 |
+| **大语言模型** | `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`、`LLM_JSON_MODE` | 支持任意 OpenAI 兼容 `/chat/completions` 接口（如 DeepSeek `deepseek-flash`）。 |
 | **联网搜索与抓取** | `SEARCH_PROVIDERS`、`SEARCH_ALLOW_ANONYMOUS`、`EXA_API_KEY`、`DEEPSEEK_API_KEY`、`TAVILY_API_KEY`、`ANYSEARCH_API_KEY` | 默认回退顺序 **`exa,deepseek,tavily,anysearch`**。Exa 无 Key 时自动启用官方匿名 MCP；DeepSeek 对接 `POST /v1/tools/search` 与 `/v1/tools/fetch`；遇 429 自动共享冷却、遇 402/401 任务内切换下一家。 |
 | **地点与路线** | `AMAP_API_KEY` | 高德 Web 服务 Key，负责同城 POI 消歧及步行/公交/驾车真实耗时与票价估算，内置限流退避与共享节流。 |
 | **调用超时** | `PROVIDER_TIMEOUT_SECONDS` | 默认 `30` 秒；复杂多日规划或长正文核验建议设为 `120` 秒。 |
 
 ---
 
-## 数据备份、恢复与测试
+## 数据备份与恢复
 
 应用提供离线维护工具 `travel-data`，在服务空闲并停止后可导出含 SQLite 单文件快照、全部原资料与 SHA-256 清单的 ZIP 归档，并支持校验与空目录/空卷恢复（`.env` 需单独保管）。
 
@@ -187,26 +186,14 @@ docker compose up -d --no-build --wait app
 
 </details>
 
-**常用开发校验命令**：
-
-```sh
-uv run pytest -q                     # 后端全量测试（349 项）
-uv run ruff check .                  # Python 代码规范检查
-uv run ruff format --check .         # Python 格式检查
-npm --prefix web run typecheck       # TypeScript 类型检查
-npm --prefix web test -- --run       # 前端单元测试（60 项）
-npm --prefix web run build           # 前端生产构建
-```
-
 ---
 
 ## 文档导航
 
 | 分类 | 文档 | 内容概览 |
 | --- | --- | --- |
-| **完整报告** | [项目完整报告（PDF）](project-report.pdf) | 含系统架构、算法与核验设计、全部核心页面高清截图及完整验收数据的 LaTeX 报告（[源码](docs/report/project-report.tex)）。 |
+| **技术报告** | [项目技术报告（PDF）](project-report.pdf) | 含系统架构、动态规划与事实核验设计、个人知识库及核心页面展示的 LaTeX 报告（[源码](docs/report/project-report.tex)）。 |
 | **产品与架构** | [产品需求](docs/requirements.md) · [决策台账](docs/decisions.md) · [术语表](GLOSSARY.md) | 24 条已确认规则（R01–R24）、预算与编辑边界、领域概念定义及 3 份 ADR。 |
 | **核心引擎** | [动态旅行规划](docs/agent-planning.md) · [首版实施设计](docs/implementation.md) · [技术栈选型](docs/tech-stack.md) | LLM 动作循环、独立审核、检查点恢复、数据契约（Schema v6）与 HTTP 接口边界。 |
 | **外部接入** | [外部服务接入](docs/service-integration.md) · [搜索服务比较](docs/search-services.md) · [旅行 API 方案](docs/travel-apis.md) | 模型兼容契约、Exa/DeepSeek/Tavily/AnySearch 四家回退与高德适配。 |
-| **开发与部署** | [后端开发与验证](docs/backend.md) · [网页开发与验收](docs/frontend.md) · [部署与维护说明](docs/deployment.md) | 本地启动、视觉规范（[design.md](design.md)）、容器发布与停服备份恢复。 |
-| **验收记录** | [西安五日游与偏好实测](docs/validation/2026-11-22-xian-five-days.md) · [后端容量与容器](docs/validation/2026-11-15-backend.md) · [验收设计](docs/acceptance.md) | 西安五日规划与局部编辑、个人偏好 A/B 对照、100 份资料压测、28 组 Playwright 浏览器验收与 Linux 容器报告。 |
+| **开发与部署** | [后端开发说明](docs/backend.md) · [前端开发说明](docs/frontend.md) · [部署与维护说明](docs/deployment.md) | 本地启动、视觉规范（[design.md](design.md)）、容器发布与停服备份恢复。 |
